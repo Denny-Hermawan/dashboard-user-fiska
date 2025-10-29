@@ -1,3 +1,7 @@
+// app/dashboard/page.js
+
+"use client"; // <--- TAMBAHKAN BARIS INI DI PALING ATAS
+
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebaseConfig"; // Sesuaikan path
 import { auth } from "@/lib/firebaseConfig"; // Untuk mendapatkan user saat ini
@@ -5,7 +9,15 @@ import { useEffect, useState } from "react";
 
 function DashboardPage() {
   const [storeName, setStoreName] = useState("Memuat...");
-  const user = auth.currentUser; // Dapatkan user yg login
+  const [user, setUser] = useState(auth.currentUser); // Simpan user di state
+
+  // Listener untuk perubahan status auth
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((newUser) => {
+      setUser(newUser);
+    });
+    return () => unsubscribe(); // Cleanup listener saat komponen unmount
+  }, []);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -24,17 +36,30 @@ function DashboardPage() {
           setStoreName("Gagal memuat");
         }
       } else {
-         setStoreName("User tidak login");
+         // Jika user logout atau belum login saat fetch
+         setStoreName("Silakan login untuk melihat dashboard");
       }
     };
 
     fetchSettings();
-  }, [user]); // Jalankan ulang jika user berubah
+  }, [user]); // Jalankan ulang jika user berubah (login/logout)
 
+  // Tambahkan handling jika user belum login
+  if (!user) {
+    // Anda bisa return komponen loading atau redirect ke halaman login
+    return (
+      <div>
+        <p>Memuat user atau silakan login...</p>
+        {/* Tambahkan link ke halaman login jika perlu */}
+      </div>
+    );
+  }
+
+  // Tampilkan dashboard jika user sudah login
   return (
     <div>
       <h1>Dashboard</h1>
-      <p>Selamat datang!</p>
+      <p>Selamat datang, {user.displayName || 'Pengguna'}!</p>
       <p>Nama Toko Anda: {storeName}</p>
       {/* Tambahkan data lain di sini */}
     </div>
