@@ -6,7 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 
-// Modern Icons
+// Icons
 const DashboardIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -50,7 +50,13 @@ const CloseIcon = () => (
   </svg>
 );
 
-const Sidebar = ({ isOpen, toggleSidebar }) => {
+const ChevronLeftIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+  </svg>
+);
+
+const Sidebar = ({ isExpanded, isMobileOpen, toggleSidebar, setIsMobileOpen }) => {
   const pathname = usePathname();
 
   const menuItems = [
@@ -65,36 +71,65 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
   return (
     <aside
       className={`
-        fixed inset-y-0 left-0 z-30 flex
-        w-64 flex-col border-r border-gray-100 bg-white
-        transition-transform duration-300 ease-in-out
-        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+        fixed inset-y-0 left-0 z-30 flex flex-col
+        border-r border-gray-100 bg-white
+        transition-all duration-300 ease-in-out
+        ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:translate-x-0
+        ${isExpanded ? 'w-64' : 'md:w-20 w-64'}
       `}
     >
       {/* Header Sidebar */}
-      <div className="flex items-center justify-between border-b border-gray-100 px-6 py-5">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 shadow-lg shadow-indigo-200">
-            <Image
-              src="/images/logo.png"
-              alt="Logo"
-              width={20}
-              height={20}
-              onError={(e) => { e.target.style.display='none'; }}
-            />
-          </div>
-          <div>
-            <h2 className="text-base font-bold text-gray-900">FISKA</h2>
-            <p className="text-xs text-gray-500">POS System</p>
-          </div>
-        </div>
-        <button
-          onClick={toggleSidebar}
-          className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
-          aria-label="Tutup sidebar"
-        >
-          <CloseIcon />
-        </button>
+      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-5">
+        {isExpanded ? (
+          <>
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 shadow-lg shadow-indigo-200">
+                <Image
+                  src="/images/logo.png"
+                  alt="Logo"
+                  width={20}
+                  height={20}
+                  onError={(e) => { e.target.style.display='none'; }}
+                />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-gray-900">FISKA</h2>
+                <p className="text-xs text-gray-500">POS System</p>
+              </div>
+            </div>
+            {/* Tombol close/collapse */}
+            <button
+              onClick={toggleSidebar}
+              className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+              aria-label="Toggle sidebar"
+            >
+              {/* Di mobile: X, di desktop: Chevron */}
+              <span className="md:hidden">
+                <CloseIcon />
+              </span>
+              <span className="hidden md:block">
+                <ChevronLeftIcon />
+              </span>
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={toggleSidebar}
+            className="mx-auto rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+            aria-label="Expand sidebar"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600">
+              <Image
+                src="/images/logo.png"
+                alt="Logo"
+                width={16}
+                height={16}
+                onError={(e) => { e.target.style.display='none'; }}
+              />
+            </div>
+          </button>
+        )}
       </div>
 
       {/* Navigation Menu */}
@@ -107,8 +142,9 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
               key={item.name}
               href={item.path}
               className={`
-                group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium
+                group flex items-center rounded-xl text-sm font-medium
                 transition-all duration-200 ease-in-out
+                ${isExpanded ? 'gap-3 px-3 py-2.5' : 'justify-center p-2.5'}
                 ${
                   isActive
                     ? 'bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700 shadow-sm'
@@ -116,31 +152,40 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 }
               `}
               onClick={() => {
-                if (isOpen) toggleSidebar();
+                if (window.innerWidth < 768) {
+                  setIsMobileOpen(false);
+                }
               }}
+              title={!isExpanded ? item.name : ''}
             >
               <span className={`transition-transform duration-200 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}>
                 {item.icon}
               </span>
-              <span className="truncate">{item.name}</span>
-              {isActive && (
-                <span className="ml-auto h-1.5 w-1.5 rounded-full bg-indigo-600"></span>
+              {isExpanded && (
+                <>
+                  <span className="truncate">{item.name}</span>
+                  {isActive && (
+                    <span className="ml-auto h-1.5 w-1.5 rounded-full bg-indigo-600"></span>
+                  )}
+                </>
               )}
             </Link>
           );
         })}
       </nav>
 
-      {/* Footer */}
-      <div className="border-t border-gray-100 p-4">
-        <div className="rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 p-4">
-          <p className="text-xs font-semibold text-indigo-900">Butuh Bantuan?</p>
-          <p className="mt-1 text-xs text-indigo-700">Hubungi support kami</p>
-          <button className="mt-3 w-full rounded-lg bg-white px-3 py-2 text-xs font-medium text-indigo-700 shadow-sm transition-shadow hover:shadow-md">
-            Kontak Support
-          </button>
+      {/* Footer - hanya tampil saat expanded */}
+      {isExpanded && (
+        <div className="border-t border-gray-100 p-4">
+          <div className="rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 p-4">
+            <p className="text-xs font-semibold text-indigo-900">Butuh Bantuan?</p>
+            <p className="mt-1 text-xs text-indigo-700">Hubungi support kami</p>
+            <button className="mt-3 w-full rounded-lg bg-white px-3 py-2 text-xs font-medium text-indigo-700 shadow-sm transition-shadow hover:shadow-md">
+              Kontak Support
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </aside>
   );
 };

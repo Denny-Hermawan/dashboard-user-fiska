@@ -13,13 +13,19 @@ const MenuIcon = () => (
   </svg>
 );
 
+const ChevronRightIcon = () => (
+  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+  </svg>
+);
+
 const LogoutIcon = () => (
   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
   </svg>
 );
 
-const Header = ({ title, onToggleSidebar }) => {
+const Header = ({ title, onToggleSidebar, isSidebarExpanded }) => {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -48,13 +54,18 @@ const Header = ({ title, onToggleSidebar }) => {
     <header className="sticky top-0 z-20 border-b border-gray-100 bg-white/80 backdrop-blur-md">
       <div className="flex h-16 items-center justify-between px-4 md:px-6">
         <div className="flex items-center gap-4">
-          {/* Toggle Button - Always visible */}
+          {/* Toggle Button - Selalu tampil di mobile, tampil di desktop saat collapsed */}
           <button
             onClick={onToggleSidebar}
-            className="flex h-10 w-10 items-center justify-center rounded-xl text-gray-600 transition-colors hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className={`
+              flex h-10 w-10 items-center justify-center rounded-xl 
+              text-gray-600 transition-colors hover:bg-gray-100 
+              focus:outline-none focus:ring-2 focus:ring-indigo-500
+              ${isSidebarExpanded ? 'md:hidden' : ''}
+            `}
             aria-label="Toggle sidebar"
           >
-            <MenuIcon />
+            {isSidebarExpanded ? <MenuIcon /> : <ChevronRightIcon />}
           </button>
 
           {/* Title */}
