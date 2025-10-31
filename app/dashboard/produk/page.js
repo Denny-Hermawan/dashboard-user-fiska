@@ -2,11 +2,13 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, doc, deleteDoc, query, orderBy } from "firebase/firestore";
+// Tambahkan 'setDoc' dan 'onSnapshot' dari firestore
+import { collection, onSnapshot, doc, deleteDoc, query, orderBy, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebaseConfig";
 import { onAuthStateChanged } from "firebase/auth";
-import ProductModal from '@/components/ProductModal'; // Komponen ini akan kita buat
+import ProductModal from '@/components/ProductModal'; 
 
+// ... (Ikon dan helper formatRupiah/getProductTypeDisplayName tetap sama) ...
 // Ikon
 const ProductIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -42,7 +44,6 @@ const formatRupiah = (value) => {
 
 // Map Tipe Produk
 const getProductTypeDisplayName = (typeIndex) => {
-  // Samakan dengan enum ProductType di lib/database.dart
   switch (typeIndex) {
     case 0: return 'Makanan';
     case 1: return 'Minuman';
@@ -53,7 +54,9 @@ const getProductTypeDisplayName = (typeIndex) => {
 
 export default function ProdukPage() {
   const [user, setUser] = useState(null);
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState([]); // Data asli dari /products
+  const [productCosts, setProductCosts] = useState({}); // Data dari /product_costs
+  const [mergedProducts, setMergedProducts] = useState([]); // Data gabungan
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -64,11 +67,14 @@ export default function ProdukPage() {
       if (!currentUser) {
         setLoading(false);
         setProducts([]);
+        setProductCosts({});
+        setMergedProducts([]);
       }
     });
     return () => unsubscribeAuth();
   }, []);
 
+  // --- Listener untuk Products (Koleksi Asli) ---
   useEffect(() => {
     if (!user) return;
 
@@ -79,7 +85,7 @@ export default function ProdukPage() {
     const unsubscribeDb = onSnapshot(q, (snapshot) => {
       const prodsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setProducts(prodsData);
-      setLoading(false);
+      // Jangan set loading false di sini, tunggu kedua listener
     }, (error) => {
       console.error("Error fetching products:", error);
       setLoading(false);
@@ -88,7 +94,41 @@ export default function ProdukPage() {
     return () => unsubscribeDb();
   }, [user]);
 
+  // --- BARU: Listener untuk Product Costs (Koleksi Baru) ---
+  useEffect(() => {
+    if (!user) return;
+
+    setLoading(true);
+    const costsRef = collection(db, "users", user.uid, "product_costs");
+    
+    const unsubscribeCosts = onSnapshot(costsRef, (snapshot) => {
+      const costsData = {};
+      snapshot.docs.forEach(doc => {
+        costsData[doc.id] = doc.data().costing; // Simpan sebagai map { id: costing_value }
+      });
+      setProductCosts(costsData);
+      setLoading(false); // Set loading false setelah listener kedua selesai
+    }, (error) => {
+      console.error("Error fetching product costs:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribeCosts();
+  }, [user]);
+
+  // --- BARU: Effect untuk Menggabungkan Data ---
+  useEffect(() => {
+    // Gabungkan data setiap kali 'products' atau 'productCosts' berubah
+    const merged = products.map(prod => ({
+      ...prod,
+      costing: productCosts[prod.id] || 0 // Ambil costing dari map, default 0 jika tidak ada
+    }));
+    setMergedProducts(merged);
+  }, [products, productCosts]);
+
+
   const handleOpenModal = (product = null) => {
+    // Kirim data yang sudah digabung (merged) ke modal
     setSelectedProduct(product);
     setIsModalOpen(true);
   };
@@ -98,12 +138,19 @@ export default function ProdukPage() {
     setSelectedProduct(null);
   };
 
+  // --- PERBARUI: Handle Delete ---
   const handleDelete = async (productId, productName) => {
     if (!user || !productId) return;
-    if (confirm(`Yakin ingin menghapus produk "${productName}"?`)) {
+    if (confirm(`Yakin ingin menghapus produk "${productName}"? (Ini juga akan menghapus data costing-nya)`)) {
       try {
+        // Hapus dari koleksi utama
         const productRef = doc(db, "users", user.uid, "products", productId);
         await deleteDoc(productRef);
+        
+        // Hapus dari koleksi costing
+        const costRef = doc(db, "users", user.uid, "product_costs", productId);
+        await deleteDoc(costRef); // Hapus ini juga
+        
       } catch (error) {
         console.error("Error deleting product:", error);
         alert("Gagal menghapus produk.");
@@ -114,7 +161,7 @@ export default function ProdukPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Kelola Produk</h2>
+        <h2 className="text-3xl font-bold text-gray-900">Kelola Produk</h2>
         <button
           onClick={() => handleOpenModal()}
           className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:bg-indigo-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
@@ -127,7 +174,7 @@ export default function ProdukPage() {
       <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 overflow-hidden">
         {loading ? (
           <p className="p-6 text-center">Memuat produk...</p>
-        ) : products.length === 0 ? (
+        ) : mergedProducts.length === 0 ? ( // <-- Gunakan mergedProducts
           <p className="p-6 text-center text-gray-500">Belum ada produk. Silakan tambahkan.</p>
         ) : (
           <div className="overflow-x-auto">
@@ -136,13 +183,16 @@ export default function ProdukPage() {
                 <tr>
                   <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Nama Produk</th>
                   <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Kategori</th>
-                  <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Harga</th>
+                  {/* --- BARU: Kolom Costing --- */}
+                  <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Harga Pokok</th>
+                  <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Harga Jual</th>
                   <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Tipe</th>
                   <th className="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-600">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
-                {products.map((prod) => (
+                {/* --- Render dari mergedProducts --- */}
+                {mergedProducts.map((prod) => (
                   <tr key={prod.id} className="transition-colors hover:bg-gray-50">
                     <td className="whitespace-nowrap px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -153,11 +203,13 @@ export default function ProdukPage() {
                       </div>
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-600">{prod.kategori}</td>
+                    {/* --- BARU: Tampilkan Costing --- */}
+                    <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-red-700">{formatRupiah(prod.costing)}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-gray-700">{formatRupiah(prod.harga)}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-600">{getProductTypeDisplayName(prod.productType)}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-right">
                       <button
-                        onClick={() => handleOpenModal(prod)}
+                        onClick={() => handleOpenModal(prod)} // <-- Kirim data merged
                         className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-indigo-100 hover:text-indigo-700"
                         title="Edit"
                       >
@@ -184,7 +236,7 @@ export default function ProdukPage() {
          <ProductModal
            isOpen={isModalOpen}
            onClose={handleCloseModal}
-           product={selectedProduct}
+           product={selectedProduct} // <-- Kirim data merged (termasuk costing)
            userId={user?.uid}
          />
       )}

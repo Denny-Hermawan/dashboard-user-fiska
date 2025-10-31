@@ -213,7 +213,7 @@ export default function MenuPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Kelola Kategori</h2>
+        <h2 className="text-3xl font-bold text-gray-900">Kelola Kategori</h2>
         <button
           onClick={() => handleOpenModal()}
           className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:bg-indigo-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
