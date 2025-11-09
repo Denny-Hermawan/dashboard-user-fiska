@@ -6,15 +6,15 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 
-// --- Ikon Baru (Material Design) ---
-// DIUBAH: MdChevronDown diganti menjadi MdKeyboardArrowDown
+// --- Ikon Baru (dari React Icons / Material Design) ---
 import { MdClose, MdChevronLeft, MdKeyboardArrowDown } from 'react-icons/md';
 // --- Akhir Ikon ---
 
 
 // --- Komponen Link Biasa ---
 const SidebarLink = ({ item, isExpanded, pathname, closeMobileSidebar }) => {
-  const isActive = pathname === item.path || (item.path !== '/dashboard' && pathname.startsWith(item.path));
+  // --- PERBAIKAN LOGIKA 'isActive' ---
+  const isActive = pathname === item.path || (item.path !== '/dashboard' && pathname.startsWith(item.path + '/'));
   
   return (
     <Link
@@ -49,8 +49,10 @@ const SidebarLink = ({ item, isExpanded, pathname, closeMobileSidebar }) => {
 
 // --- Komponen Dropdown Baru ---
 const SidebarDropdown = ({ item, isExpanded, pathname, closeMobileSidebar }) => {
-  // Cek apakah ada anak menu yang aktif
-  const isChildActive = item.children.some(child => pathname.startsWith(child.path));
+  // --- PERBAIKAN LOGIKA 'isChildActive' ---
+  const isChildActive = item.children.some(child => 
+    pathname === child.path || pathname.startsWith(child.path + "/")
+  );
   
   // Buka dropdown secara default jika ada anak yang aktif
   const [isOpen, setIsOpen] = useState(isChildActive);

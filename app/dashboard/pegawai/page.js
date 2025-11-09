@@ -1,88 +1,79 @@
-// app/dashboard/menu/page.js
-"use client"; // <-- PERBAIKAN: INI YANG HILANG
+// app/dashboard/pegawai/page.js
+"use client";
 
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, getDocs } from "firebase/firestore";
 import { auth, db } from "@/lib/firebaseConfig";
 import { onAuthStateChanged } from "firebase/auth";
-// --- BARU: Impor toast ---
 import { toast } from "sonner";
 
 // --- Ikon Baru (Material Design) ---
-import { MdCategory, MdEdit, MdDelete, MdAdd } from 'react-icons/md';
+import { MdPeople, MdEdit, MdDelete, MdAdd, MdSearch, MdClear } from 'react-icons/md';
 // --- Akhir Ikon ---
 
-// Komponen Modal Kategori (Form)
-const CategoryModal = ({ isOpen, onClose, category, userId }) => {
+// Komponen Modal Pegawai (Form)
+const PegawaiModal = ({ isOpen, onClose, pegawai, userId }) => {
   const [name, setName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // State 'error' tidak diperlukan lagi, diganti toast
-  // const [error, setError] = useState(null); 
 
   useEffect(() => {
-    if (category) {
-      setName(category.name);
+    if (pegawai) {
+      setName(pegawai.name);
     } else {
       setName('');
     }
-    // setError(null); // Tidak perlu
-  }, [category, isOpen]);
+  }, [pegawai, isOpen]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isSubmitting || !name.trim() || !userId) return;
 
     setIsSubmitting(true);
-    // setError(null); // Tidak perlu
 
-    const categoriesRef = collection(db, "users", userId, "categories");
+    // Koleksi diubah ke 'cashiers'
+    const cashiersRef = collection(db, "users", userId, "cashiers");
     const newNameTrimmed = name.trim();
     const newNameLowercase = newNameTrimmed.toLowerCase();
     
     try {
-      // Cek duplikasi
-      const q = query(categoriesRef, where("name_lowercase", "==", newNameLowercase));
+      // Cek duplikasi (mirip kategori, tapi cek di koleksi 'cashiers')
+      const q = query(cashiersRef, where("name_lowercase", "==", newNameLowercase));
       const querySnapshot = await getDocs(q);
       
       let isDuplicate = false;
       if (!querySnapshot.empty) {
-        if (category) { // Mode Edit
-          // Duplikat jika ID-nya berbeda dengan yang sedang diedit
-          isDuplicate = querySnapshot.docs.some(doc => doc.id !== category.id);
+        if (pegawai) { // Mode Edit
+          isDuplicate = querySnapshot.docs.some(doc => doc.id !== pegawai.id);
         } else { // Mode Tambah
           isDuplicate = true;
         }
       }
 
       if (isDuplicate) {
-        // --- GANTI: Gunakan toast.error ---
-        toast.error(`Kategori "${newNameTrimmed}" sudah ada.`);
-        setIsSubmitting(false); // Hentikan submit
-        return; // Keluar dari fungsi
-        // --- AKHIR GANTI ---
+        toast.error(`Pegawai "${newNameTrimmed}" sudah ada.`);
+        setIsSubmitting(false);
+        return;
       }
 
-      const categoryData = { 
+      // Simpan nama (dan name_lowercase untuk search/cek duplikat)
+      const pegawaiData = { 
         name: newNameTrimmed,
         name_lowercase: newNameLowercase
       };
 
-      if (category) {
+      if (pegawai) {
         // Update
-        const categoryRef = doc(db, "users", userId, "categories", category.id);
-        await updateDoc(categoryRef, categoryData);
-        // --- BARU: Notifikasi sukses ---
-        toast.success("Kategori berhasil diperbarui.");
+        const pegawaiRef = doc(db, "users", userId, "cashiers", pegawai.id);
+        await updateDoc(pegawaiRef, pegawaiData);
+        toast.success("Pegawai berhasil diperbarui.");
       } else {
         // Add
-        await addDoc(categoriesRef, { ...categoryData, createdAt: new Date() });
-        // --- BARU: Notifikasi sukses ---
-        toast.success(`Kategori "${newNameTrimmed}" berhasil ditambahkan.`);
+        await addDoc(cashiersRef, { ...pegawaiData, createdAt: new Date() });
+        toast.success(`Pegawai "${newNameTrimmed}" berhasil ditambahkan.`);
       }
       onClose();
     } catch (err) {
-      console.error("Error saving category:", err);
-      // --- GANTI: Gunakan toast.error ---
+      console.error("Error saving pegawai:", err);
       toast.error(err.message || "Gagal menyimpan.");
     } finally {
       setIsSubmitting(false);
@@ -95,20 +86,18 @@ const CategoryModal = ({ isOpen, onClose, category, userId }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
         <h3 className="mb-4 text-lg font-bold text-gray-900">
-          {category ? 'Edit Kategori' : 'Tambah Kategori Baru'}
+          {pegawai ? 'Edit Pegawai' : 'Tambah Pegawai Baru'}
         </h3>
         <form onSubmit={handleSubmit}>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Nama Kategori"
+            placeholder="Nama Pegawai"
             className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-200 text-gray-900"
             disabled={isSubmitting}
             required
           />
-          {/* Tampilan error manual dihapus */}
-          {/* {error && <p className="mt-2 text-sm text-red-600">{error}</p>} */}
           <div className="mt-6 flex gap-3">
             <button
               type="button"
@@ -133,19 +122,22 @@ const CategoryModal = ({ isOpen, onClose, category, userId }) => {
 };
 
 // Komponen Halaman Utama
-export default function MenuPage() {
+export default function PegawaiPage() {
   const [user, setUser] = useState(null);
-  const [categories, setCategories] = useState([]);
+  const [pegawaiList, setPegawaiList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedPegawai, setSelectedPegawai] = useState(null);
+  
+  // --- BARU: State untuk search ---
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       if (!currentUser) {
         setLoading(false);
-        setCategories([]);
+        setPegawaiList([]);
       }
     });
     return () => unsubscribeAuth();
@@ -155,117 +147,130 @@ export default function MenuPage() {
     if (!user) return;
 
     setLoading(true);
-    const categoriesRef = collection(db, "users", user.uid, "categories");
-    const q = query(categoriesRef, orderBy("name"));
+    // Target koleksi 'cashiers'
+    const cashiersRef = collection(db, "users", user.uid, "cashiers");
+    const q = query(cashiersRef, orderBy("name"));
 
     const unsubscribeDb = onSnapshot(q, (snapshot) => {
-      const catsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setCategories(catsData);
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setPegawaiList(data);
       setLoading(false);
     }, (error) => {
-      console.error("Error fetching categories:", error);
+      console.error("Error fetching pegawai:", error);
       setLoading(false);
     });
 
     return () => unsubscribeDb();
   }, [user]);
 
-  const handleOpenModal = (category = null) => {
-    setSelectedCategory(category);
+  const handleOpenModal = (pegawai = null) => {
+    setSelectedPegawai(pegawai);
     setIsModalOpen(true);
   };
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
-    setSelectedCategory(null);
+    setSelectedPegawai(null);
   };
 
-  const handleDelete = async (categoryId, categoryName) => {
-    if (!user || !categoryId) return;
+  const handleDelete = (pegawaiId, pegawaiName) => {
+    if (!user || !pegawaiId) return;
     
-    // Cek apakah kategori dipakai
-    try {
-      const productsRef = collection(db, "users", user.uid, "products");
-      const q = query(productsRef, where("kategori", "==", categoryName), orderBy("name"), limit(1));
-      const productSnapshot = await getDocs(q);
-
-      if (!productSnapshot.empty) {
-        // --- GANTI: Gunakan toast.error ---
-        toast.error(`Gagal menghapus: Kategori "${categoryName}" masih digunakan oleh produk "${productSnapshot.docs[0].data().name}".`);
-        return;
-      }
-      
-      // --- GANTI: Gunakan toast.confirm ---
-      toast.confirm(`Yakin ingin menghapus kategori "${categoryName}"?`, {
-        description: 'Tindakan ini tidak dapat dibatalkan.',
-        onOk: async () => {
-          try {
-            const categoryRef = doc(db, "users", user.uid, "categories", categoryId);
-            await deleteDoc(categoryRef);
-            toast.success(`Kategori "${categoryName}" berhasil dihapus.`);
-          } catch (error) {
-            console.error("Error deleting category:", error);
-            toast.error("Gagal menghapus kategori.");
-          }
-        },
-        // onCancel opsional, defaultnya menutup toast
-      });
-      
-    } catch (error) {
-      console.error("Error checking product usage:", error);
-      // --- GANTI: Gunakan toast.error ---
-      toast.error("Gagal memeriksa penggunaan kategori.");
-    }
+    // Konfirmasi Hapus (logika sama seperti kategori)
+    toast.confirm(`Yakin ingin menghapus pegawai "${pegawaiName}"?`, {
+      description: 'Tindakan ini tidak dapat dibatalkan.',
+      onOk: async () => {
+        try {
+          const pegawaiRef = doc(db, "users", user.uid, "cashiers", pegawaiId);
+          await deleteDoc(pegawaiRef);
+          toast.success(`Pegawai "${pegawaiName}" berhasil dihapus.`);
+        } catch (error) {
+          console.error("Error deleting pegawai:", error);
+          toast.error("Gagal menghapus pegawai.");
+        }
+      },
+    });
   };
+  
+  // --- BARU: Filter list pegawai berdasarkan search query ---
+  const filteredPegawai = pegawaiList.filter(pegawai =>
+    pegawai.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold text-gray-900">Kelola Kategori</h2>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <h2 className="text-3xl font-bold text-gray-900">Kelola Pegawai</h2>
         <button
           onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 rounded-xl bg-cyan-700 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:bg-cyan-800 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2"
+          className="flex items-center justify-center gap-2 rounded-xl bg-cyan-700 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:bg-cyan-800 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2"
         >
           <MdAdd className="w-5 h-5" />
-          <span>Tambah Kategori</span>
+          <span>Tambah Pegawai</span>
         </button>
       </div>
 
+      {/* --- BARU: Search Bar --- */}
+      <div className="relative">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Cari nama pegawai..."
+          className="w-full rounded-lg border border-gray-300 px-4 py-2.5 pl-10 text-gray-900 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-200"
+        />
+        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+          <MdSearch className="w-5 h-5 text-gray-400" />
+        </span>
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
+            className="absolute inset-y-0 right-0 flex items-center pr-3"
+          >
+            <MdClear className="w-5 h-5 text-gray-400 hover:text-gray-600" />
+          </button>
+        )}
+      </div>
+      {/* --- AKHIR SEARCH BAR --- */}
+
+
       <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 overflow-hidden">
         {loading ? (
-          <p className="p-6 text-center">Memuat kategori...</p>
-        ) : categories.length === 0 ? (
-          <p className="p-6 text-center text-gray-500">Belum ada kategori. Silakan tambahkan.</p>
+          <p className="p-6 text-center">Memuat data pegawai...</p>
+        ) : pegawaiList.length === 0 ? ( // Cek list total
+          <p className="p-6 text-center text-gray-500">Belum ada pegawai. Silakan tambahkan.</p>
+        ) : filteredPegawai.length === 0 ? ( // Cek hasil filter
+          <p className="p-6 text-center text-gray-500">Tidak ada pegawai yang cocok dengan "{searchQuery}".</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-100">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Nama Kategori</th>
+                  <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Nama Pegawai</th>
                   <th className="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-600">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
-                {categories.map((cat) => (
-                  <tr key={cat.id} className="transition-colors hover:bg-gray-50">
+                {filteredPegawai.map((pegawai) => ( // Gunakan list terfilter
+                  <tr key={pegawai.id} className="transition-colors hover:bg-gray-50">
                     <td className="whitespace-nowrap px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-100 text-cyan-800">
-                          <MdCategory className="w-5 h-5" />
+                          <MdPeople className="w-5 h-5" />
                         </div>
-                        <p className="text-sm font-medium text-gray-900">{cat.name}</p>
+                        <p className="text-sm font-medium text-gray-900">{pegawai.name}</p>
                       </div>
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-right">
                       <button
-                        onClick={() => handleOpenModal(cat)}
+                        onClick={() => handleOpenModal(pegawai)}
                         className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-cyan-100 hover:text-cyan-800"
                         title="Edit"
                       >
                         <MdEdit className="w-5 h-5" />
                       </button>
                       <button
-                        onClick={() => handleDelete(cat.id, cat.name)}
+                        onClick={() => handleDelete(pegawai.id, pegawai.name)}
                         className="ml-2 rounded-lg p-2 text-gray-500 transition-colors hover:bg-red-100 hover:text-red-700"
                         title="Hapus"
                       >
@@ -280,10 +285,10 @@ export default function MenuPage() {
         )}
       </div>
 
-      <CategoryModal
+      <PegawaiModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        category={selectedCategory}
+        pegawai={selectedPegawai}
         userId={user?.uid}
       />
     </div>

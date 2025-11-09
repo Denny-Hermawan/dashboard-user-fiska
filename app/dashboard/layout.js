@@ -6,8 +6,7 @@ import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image'; 
-// --- BARU: Impor Toaster ---
-import { Toaster } from "sonner";
+import { Toaster } from "sonner"; 
 
 // --- Kumpulan Ikon (React Icons) ---
 import {
@@ -19,19 +18,21 @@ import {
   MdAssessment,
   MdTrendingUp,
   MdAttachMoney,
-  MdPointOfSale
+  MdPointOfSale,
+  MdPeople,
+  MdCardMembership,
+  MdPayment,
+  MdStorefront // <-- BARU: Ditambahkan
 } from 'react-icons/md';
 // --- Akhir Ikon ---
 
 // --- Struktur Menu Baru (Laporan menjadi Dropdown) ---
-// Ikon diperbarui untuk menggunakan React Icons
 const menuGroups = [
   {
     title: 'Operasional',
     items: [
       { name: 'Dashboard', path: '/dashboard', icon: <MdDashboard className="w-6 h-6" /> },
       { name: 'Transaksi', path: '/dashboard/transaksi', icon: <MdReceiptLong className="w-6 h-6" /> },
-      // --- PERBARUI LAPORAN ---
       { 
         name: 'Laporan', 
         icon: <MdAssessment className="w-6 h-6" />,
@@ -53,7 +54,13 @@ const menuGroups = [
         icon: <MdSettings className="w-6 h-6" />,
         children: [
           { name: 'Produk', path: '/dashboard/produk', icon: <MdInventory2 className="w-6 h-6" /> },
+          // --- BARU: Link Menu Online ditambahkan di sini ---
+          { name: 'Menu Online', path: '/dashboard/menu-online', icon: <MdStorefront className="w-6 h-6" /> },
+          // --- AKHIR TAMBAHAN ---
           { name: 'Kategori', path: '/dashboard/menu', icon: <MdCategory className="w-6 h-6" /> },
+          { name: 'Pegawai', path: '/dashboard/pegawai', icon: <MdPeople className="w-6 h-6" /> },
+          { name: 'Membership', path: '/dashboard/membership', icon: <MdCardMembership className="w-6 h-6" /> },
+          { name: 'Metode Bayar', path: '/dashboard/pembayaran', icon: <MdPayment className="w-6 h-6" /> },
           { name: 'Pengaturan', path: '/dashboard/pengaturan', icon: <MdSettings className="w-6 h-6" /> },
         ]
       }
@@ -86,7 +93,6 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
-      {/* --- BARU: Tambahkan Toaster di sini --- */}
       <Toaster richColors position="top-right" />
 
       <Sidebar 
