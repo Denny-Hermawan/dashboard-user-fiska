@@ -7,21 +7,34 @@ import { doc, getDoc, collection, query, where, Timestamp, orderBy, getDocs } fr
 import { auth, db } from "@/lib/firebaseConfig";
 import { useRouter } from 'next/navigation';
 
+// --- Ikon Baru (Material Design) ---
+import {
+  MdAttachMoney,
+  MdReceiptLong,
+  MdInventory2,
+  MdLanguage,
+  MdDashboard,
+  MdInbox,
+  MdClose
+} from 'react-icons/md';
+// --- Akhir Ikon ---
+
+
 // --- Komponen-Komponen ---
 
-// Loading Spinner (Tidak berubah)
+// Loading Spinner (Warna diperbarui)
 const LoadingSpinner = ({ message = "Memuat data..." }) => (
   <div className="flex h-64 items-center justify-center">
     <div className="flex items-center gap-3">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600"></div>
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-cyan-200 border-t-cyan-600"></div>
       <span className="text-sm font-medium text-gray-600">{message}</span>
     </div>
   </div>
 );
 
-// Summary Card (Tidak berubah)
+// Summary Card (Warna & Ikon diperbarui)
 const SummaryCard = ({ title, value, icon, trend = null, trendUp = false }) => (
-  <div className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100 transition-all duration-300 hover:shadow-lg hover:ring-indigo-100">
+  <div className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100 transition-all duration-300 hover:shadow-lg hover:ring-cyan-100">
     <div className="flex items-start justify-between">
       <div className="flex-1">
         <p className="text-sm font-medium text-gray-500">{title}</p>
@@ -35,14 +48,14 @@ const SummaryCard = ({ title, value, icon, trend = null, trendUp = false }) => (
           </div>
         )}
       </div>
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 text-2xl transition-transform duration-300 group-hover:scale-110">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-50 to-cyan-100 text-2xl text-cyan-700 transition-transform duration-300 group-hover:scale-110">
         {icon}
       </div>
     </div>
   </div>
 );
 
-// --- BARU: Komponen Modal untuk Semua Transaksi ---
+// --- Modal untuk Semua Transaksi (Ikon & Warna diperbarui) ---
 const AllTransactionsModal = ({ isOpen, onClose, transactions }) => {
   if (!isOpen) return null;
 
@@ -63,7 +76,7 @@ const AllTransactionsModal = ({ isOpen, onClose, transactions }) => {
             className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
             title="Tutup"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            <MdClose className="w-6 h-6" />
           </button>
         </div>
 
@@ -83,7 +96,7 @@ const AllTransactionsModal = ({ isOpen, onClose, transactions }) => {
                 <tr key={tx.id} className="transition-colors hover:bg-gray-50">
                   <td className="whitespace-nowrap px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 text-sm font-semibold text-indigo-700">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-cyan-100 to-cyan-200 text-sm font-semibold text-cyan-800">
                         {(tx.namaPelanggan || 'U')[0].toUpperCase()}
                       </div>
                       <div>
@@ -191,7 +204,7 @@ function DashboardPageContent() {
     return () => unsubscribe();
   }, [router]);
 
-  // --- Logika Fetch Data Diperbarui ---
+  // --- Logika Fetch Data (Tidak Diubah) ---
   const fetchAllDashboardData = async (currentUser) => {
     if (!currentUser) return;
     setIsLoading(true);
@@ -298,14 +311,13 @@ function DashboardPageContent() {
 
   return (
     <div className="space-y-6">
-      {/* Welcome Card (Tidak berubah) */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 p-8 text-white shadow-xl">
-        {/* ... (isi welcome card tidak berubah) ... */}
+      {/* Welcome Card (Tema diperbarui) */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-700 via-cyan-800 to-cyan-900 p-8 text-white shadow-xl">
          <div className="absolute right-0 top-0 h-64 w-64 translate-x-32 -translate-y-32 rounded-full bg-white opacity-10"></div>
         <div className="absolute bottom-0 left-0 h-48 w-48 -translate-x-24 translate-y-24 rounded-full bg-white opacity-10"></div>
         <div className="relative">
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-2xl">👋</span>
+            <span className="text-2xl"><MdDashboard /></span>
             <span className="text-sm font-medium opacity-90">Selamat Datang Kembali</span>
           </div>
           <h2 className="text-3xl font-bold mb-2">
@@ -317,12 +329,12 @@ function DashboardPageContent() {
         </div>
       </div>
 
-      {/* Summary Cards (Tidak berubah) */}
+      {/* Summary Cards (Ikon diperbarui) */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryCard title="Penjualan Hari Ini" value={formatRupiah(dailySales)} icon="💰" />
-        <SummaryCard title="Transaksi Hari Ini" value={dailyTxnCount.toString()} icon="🛒" />
-        <SummaryCard title="Produk Terjual (Hari Ini)" value={dailyItemsSold.toString()} icon="📦" />
-        <SummaryCard title="Penjualan Online (Hari Ini)" value={formatRupiah(dailyOnlineSales)} icon="🌐" />
+        <SummaryCard title="Penjualan Hari Ini" value={formatRupiah(dailySales)} icon={<MdAttachMoney />} />
+        <SummaryCard title="Transaksi Hari Ini" value={dailyTxnCount.toString()} icon={<MdReceiptLong />} />
+        <SummaryCard title="Produk Terjual (Hari Ini)" value={dailyItemsSold.toString()} icon={<MdInventory2 />} />
+        <SummaryCard title="Penjualan Online (Hari Ini)" value={formatRupiah(dailyOnlineSales)} icon={<MdLanguage />} />
       </div>
 
       {/* Tata Letak Utama (Tidak berubah) */}
@@ -331,7 +343,7 @@ function DashboardPageContent() {
         {/* Kolom Utama (Transaksi & Produk) */}
         <div className="lg:col-span-2 space-y-6">
           
-          {/* --- Transaksi Terbaru --- */}
+          {/* --- Transaksi Terbaru (Tema diperbarui) --- */}
           <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 overflow-hidden">
             <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
               <div>
@@ -341,19 +353,16 @@ function DashboardPageContent() {
               {/* --- TOMBOL DIPERBARUI --- */}
               <button 
                 onClick={() => setIsModalOpen(true)} // <-- BARU: Buka modal
-                className="rounded-lg bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-100"
+                className="rounded-lg bg-cyan-50 px-4 py-2 text-sm font-medium text-cyan-700 transition-colors hover:bg-cyan-100"
               >
                 Lihat Semua
               </button>
             </div>
 
-            {/* Tabel Transaksi Terbaru (Tidak berubah) */}
+            {/* Tabel Transaksi Terbaru (Tema & Ikon diperbarui) */}
             {recentTransactions.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16">
-                {/* ... (isi placeholder tidak berubah) ... */}
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-3xl">
-                  📭
-                </div>
+                <MdInbox className="h-16 w-16 text-gray-300" />
                 <p className="mt-4 text-sm font-medium text-gray-900">Belum ada transaksi</p>
                 <p className="mt-1 text-sm text-gray-500">Transaksi hari ini akan muncul di sini</p>
               </div>
@@ -371,10 +380,10 @@ function DashboardPageContent() {
                   <tbody className="divide-y divide-gray-100 bg-white">
                     {recentTransactions.map((tx) => (
                       <tr key={tx.id} className="transition-colors hover:bg-gray-50">
-                        {/* ... (isi tabel tidak berubah) ... */}
+                        {/* Avatar diperbarui */}
                         <td className="whitespace-nowrap px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 text-sm font-semibold text-indigo-700">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-cyan-100 to-cyan-200 text-sm font-semibold text-cyan-800">
                               {(tx.namaPelanggan || 'U')[0].toUpperCase()}
                             </div>
                             <div>
@@ -411,12 +420,11 @@ function DashboardPageContent() {
           </div>
         </div>
 
-        {/* Kolom Samping (Ringkasan) (Tidak berubah) */}
+        {/* Kolom Samping (Ringkasan) (Tema diperbarui) */}
         <div className="lg:col-span-1 space-y-6">
           
           {/* Produk Terlaris */}
           <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
-            {/* ... (isi produk terlaris tidak berubah) ... */}
             <div className="border-b border-gray-100 px-6 py-4">
               <h3 className="text-lg font-bold text-gray-900">Produk Terlaris (Hari Ini)</h3>
             </div>
@@ -430,7 +438,7 @@ function DashboardPageContent() {
                       <p className="text-sm font-medium text-gray-900 truncate max-w-48">{name}</p>
                       <p className="text-sm text-gray-500">Terjual</p>
                     </div>
-                    <span className="text-lg font-bold text-indigo-600">{qty}</span>
+                    <span className="text-lg font-bold text-cyan-700">{qty}</span>
                   </li>
                 ))}
               </ul>
@@ -439,7 +447,6 @@ function DashboardPageContent() {
           
           {/* Metode Bayar */}
           <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
-            {/* ... (isi metode bayar tidak berubah) ... */}
             <div className="border-b border-gray-100 px-6 py-4">
               <h3 className="text-lg font-bold text-gray-900">Metode Bayar (Hari Ini)</h3>
             </div>

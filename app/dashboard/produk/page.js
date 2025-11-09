@@ -7,36 +7,9 @@ import { auth, db } from "@/lib/firebaseConfig";
 import { onAuthStateChanged } from "firebase/auth";
 import ProductModal from '@/components/ProductModal'; 
 
-// ... (Ikon, helper, dan ProductModal tidak berubah) ...
-
-// --- Kumpulan Ikon ---
-const ProductIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-  </svg>
-);
-const EditIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-  </svg>
-);
-const DeleteIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-  </svg>
-);
-const AddIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-  </svg>
-);
-// Ikon untuk modal hapus
-const WarningIcon = () => (
-  <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-  </svg>
-);
-// --- Akhir Kumpulan Ikon ---
+// --- Ikon Baru (Material Design) ---
+import { MdInventory2, MdEdit, MdDelete, MdAdd, MdWarning } from 'react-icons/md';
+// --- Akhir Ikon ---
 
 // --- Helper Functions (Tidak Berubah) ---
 const formatRupiah = (value) => {
@@ -68,7 +41,7 @@ const ConfirmDeleteModal = ({ isOpen, onClose, onConfirm, productName, isDeletin
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
         <div className="flex items-start gap-4">
           <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100">
-            <WarningIcon />
+            <MdWarning className="w-6 h-6 text-red-600" />
           </div>
           <div className="flex-1">
             <h3 className="mb-2 text-lg font-bold text-gray-900">Hapus Produk</h3>
@@ -227,9 +200,9 @@ export default function ProdukPage() {
         <h2 className="text-3xl font-bold text-gray-900">Kelola Produk</h2>
         <button
           onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:bg-indigo-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+          className="flex items-center gap-2 rounded-xl bg-cyan-700 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:bg-cyan-800 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2"
         >
-          <AddIcon />
+          <MdAdd className="w-5 h-5" />
           <span>Tambah Produk</span>
         </button>
       </div>
@@ -257,8 +230,8 @@ export default function ProdukPage() {
                   <tr key={prod.id} className="transition-colors hover:bg-gray-50">
                     <td className="whitespace-nowrap px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-700">
-                          <ProductIcon />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-100 text-cyan-800">
+                          <MdInventory2 className="w-5 h-5" />
                         </div>
                         <p className="text-sm font-medium text-gray-900">{prod.name}</p>
                       </div>
@@ -270,10 +243,10 @@ export default function ProdukPage() {
                     <td className="whitespace-nowrap px-6 py-4 text-right">
                       <button
                         onClick={() => handleOpenModal(prod)}
-                        className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-indigo-100 hover:text-indigo-700"
+                        className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-cyan-100 hover:text-cyan-800"
                         title="Edit"
                       >
-                        <EditIcon />
+                        <MdEdit className="w-5 h-5" />
                       </button>
                       <button
                         // --- PERBARUI: Panggil handleDeleteClick ---
@@ -281,7 +254,7 @@ export default function ProdukPage() {
                         className="ml-2 rounded-lg p-2 text-gray-500 transition-colors hover:bg-red-100 hover:text-red-700"
                         title="Hapus"
                       >
-                        <DeleteIcon />
+                        <MdDelete className="w-5 h-5" />
                       </button>
                     </td>
                   </tr>

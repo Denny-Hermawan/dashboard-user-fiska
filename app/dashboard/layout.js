@@ -6,75 +6,41 @@ import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image'; 
+// --- BARU: Impor Toaster ---
+import { Toaster } from "sonner";
 
-// --- Kumpulan Ikon ---
-const DashboardIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-  </svg>
-);
-const TransactionIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-  </svg>
-);
-const SettingsIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-  </svg>
-);
-const ProductIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-  </svg>
-);
-const CategoryIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h7" />
-  </svg>
-);
-
-// --- BARU: Ikon untuk Laporan ---
-const ReportIcon = () => ( // Ikon Induk Laporan
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-  </svg>
-);
-const SummaryIcon = () => ( // Ikon Ringkasan
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-  </svg>
-);
-const ProfitIcon = () => ( // Ikon Profit
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0c-1.11 0-2.08-.402-2.599-1M12 16v-1m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-);
-const CashierIcon = () => ( // Ikon Laporan Kasir
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-  </svg>
-);
+// --- Kumpulan Ikon (React Icons) ---
+import {
+  MdDashboard,
+  MdReceiptLong,
+  MdSettings,
+  MdInventory2,
+  MdCategory,
+  MdAssessment,
+  MdTrendingUp,
+  MdAttachMoney,
+  MdPointOfSale
+} from 'react-icons/md';
 // --- Akhir Ikon ---
 
 // --- Struktur Menu Baru (Laporan menjadi Dropdown) ---
+// Ikon diperbarui untuk menggunakan React Icons
 const menuGroups = [
   {
     title: 'Operasional',
     items: [
-      { name: 'Dashboard', path: '/dashboard', icon: <DashboardIcon /> },
-      { name: 'Transaksi', path: '/dashboard/transaksi', icon: <TransactionIcon /> },
+      { name: 'Dashboard', path: '/dashboard', icon: <MdDashboard className="w-6 h-6" /> },
+      { name: 'Transaksi', path: '/dashboard/transaksi', icon: <MdReceiptLong className="w-6 h-6" /> },
       // --- PERBARUI LAPORAN ---
       { 
         name: 'Laporan', 
-        icon: <ReportIcon />,
+        icon: <MdAssessment className="w-6 h-6" />,
         children: [
-          { name: 'Profitabilitas', path: '/dashboard/laporan/profitabilitas', icon: <ProfitIcon /> },
-          { name: 'Ringkasan', path: '/dashboard/laporan/ringkasan', icon: <SummaryIcon /> },
-          { name: 'Per Produk', path: '/dashboard/laporan/produk', icon: <ProductIcon /> },
-          { name: 'Per Kategori', path: '/dashboard/laporan/kategori', icon: <CategoryIcon /> },
-          { name: 'Laporan Kasir', path: '/dashboard/laporan/kasir', icon: <CashierIcon /> },
+          { name: 'Profitabilitas', path: '/dashboard/laporan/profitabilitas', icon: <MdAttachMoney className="w-6 h-6" /> },
+          { name: 'Ringkasan', path: '/dashboard/laporan/ringkasan', icon: <MdTrendingUp className="w-6 h-6" /> },
+          { name: 'Per Produk', path: '/dashboard/laporan/produk', icon: <MdInventory2 className="w-6 h-6" /> },
+          { name: 'Per Kategori', path: '/dashboard/laporan/kategori', icon: <MdCategory className="w-6 h-6" /> },
+          { name: 'Laporan Kasir', path: '/dashboard/laporan/kasir', icon: <MdPointOfSale className="w-6 h-6" /> },
         ]
       }
     ]
@@ -84,11 +50,11 @@ const menuGroups = [
     items: [
       { 
         name: 'Kelola', 
-        icon: <SettingsIcon />,
+        icon: <MdSettings className="w-6 h-6" />,
         children: [
-          { name: 'Produk', path: '/dashboard/produk', icon: <ProductIcon /> },
-          { name: 'Kategori', path: '/dashboard/menu', icon: <CategoryIcon /> },
-          { name: 'Pengaturan', path: '/dashboard/pengaturan', icon: <SettingsIcon /> },
+          { name: 'Produk', path: '/dashboard/produk', icon: <MdInventory2 className="w-6 h-6" /> },
+          { name: 'Kategori', path: '/dashboard/menu', icon: <MdCategory className="w-6 h-6" /> },
+          { name: 'Pengaturan', path: '/dashboard/pengaturan', icon: <MdSettings className="w-6 h-6" /> },
         ]
       }
     ]
@@ -120,6 +86,9 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
+      {/* --- BARU: Tambahkan Toaster di sini --- */}
+      <Toaster richColors position="top-right" />
+
       <Sidebar 
         isExpanded={isSidebarExpanded}
         isMobileOpen={isMobileSidebarOpen}

@@ -9,22 +9,14 @@ import { auth, db, storage } from "@/lib/firebaseConfig"; // Pastikan storage di
 import Image from 'next/image';
 import ReceiptTemplateEditor from '@/components/ReceiptTemplateEditor'; // <-- Impor komponen baru
 
-// --- Ikon ---
-const UploadIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-);
-const StoreIcon = () => (
-  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
-);
-const AddressIcon = () => (
-  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-);
-const PhoneIcon = () => (
-  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-);
-const ReceiptIcon = () => (
-  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-);
+// --- Ikon Baru (Material Design) ---
+import {
+  MdCloudUpload,
+  MdStorefront,
+  MdLocationOn,
+  MdPhone,
+  MdReceipt
+} from 'react-icons/md';
 // --- Akhir Ikon ---
 
 
@@ -224,7 +216,7 @@ export default function PengaturanPage() {
   if (isLoading || !user) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600"></div>
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-cyan-200 border-t-cyan-600"></div>
       </div>
     );
   }
@@ -240,11 +232,11 @@ export default function PengaturanPage() {
         <div>
           <label htmlFor="storeName" className="block text-sm font-medium text-gray-700">Nama Toko</label>
           <div className="relative mt-1">
-            <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><StoreIcon /></span>
+            <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><MdStorefront className="w-5 h-5 text-gray-400" /></span>
             <input
               type="text" id="storeName" name="storeName"
               value={settings.storeName} onChange={handleChange}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 pl-10 text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 pl-10 text-gray-900 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-200"
               required
             />
           </div>
@@ -254,12 +246,12 @@ export default function PengaturanPage() {
         <div>
           <label htmlFor="storeAddress" className="block text-sm font-medium text-gray-700">Alamat Toko</label>
           <div className="relative mt-1">
-            <span className="pointer-events-none absolute inset-y-0 left-0 top-0 flex items-center pl-3 pt-3"><AddressIcon /></span>
+            <span className="pointer-events-none absolute inset-y-0 left-0 top-0 flex items-center pl-3 pt-3"><MdLocationOn className="w-5 h-5 text-gray-400" /></span>
             <textarea
               id="storeAddress" name="storeAddress"
               value={settings.storeAddress} onChange={handleChange}
               rows={3}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 pl-10 text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 pl-10 text-gray-900 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-200"
             />
           </div>
         </div>
@@ -268,11 +260,11 @@ export default function PengaturanPage() {
         <div>
           <label htmlFor="storePhone" className="block text-sm font-medium text-gray-700">Telepon Toko</label>
           <div className="relative mt-1">
-            <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><PhoneIcon /></span>
+            <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><MdPhone className="w-5 h-5 text-gray-400" /></span>
             <input
               type="tel" id="storePhone" name="storePhone"
               value={settings.storePhone} onChange={handleChange}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 pl-10 text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 pl-10 text-gray-900 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-200"
             />
           </div>
         </div>
@@ -298,11 +290,11 @@ export default function PengaturanPage() {
         <div>
           <label
             htmlFor="logoUpload"
-            className={`cursor-pointer w-full flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white ${isUploading ? 'bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-700'} transition-colors`}
+            className={`cursor-pointer w-full flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white ${isUploading ? 'bg-gray-400' : 'bg-cyan-700 hover:bg-cyan-800'} transition-colors`}
           >
             {isUploading ? (
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-            ) : ( <UploadIcon /> )}
+            ) : ( <MdCloudUpload className="w-5 h-5" /> )}
             {isUploading ? 'Mengunggah...' : (settings.logoUrl ? 'Ganti Logo' : 'Upload Logo')}
           </label>
           <input 
@@ -320,11 +312,11 @@ export default function PengaturanPage() {
         <div>
           <label htmlFor="receiptLogoWidth" className="block text-sm font-medium text-gray-700">Lebar Logo Struk (px)</label>
           <div className="relative mt-1">
-            <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><ReceiptIcon /></span>
+            <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><MdReceipt className="w-5 h-5 text-gray-400" /></span>
             <input
               type="number" id="receiptLogoWidth" name="receiptLogoWidth"
               value={settings.receiptLogoWidth} onChange={handleChange}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 pl-10 text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 pl-10 text-gray-900 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-200"
             />
           </div>
           <p className="mt-2 text-xs text-gray-500">
@@ -364,7 +356,7 @@ export default function PengaturanPage() {
             className={`
               whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
               ${activeTab === 'info'
-                ? 'border-indigo-500 text-indigo-600'
+                ? 'border-cyan-500 text-cyan-700'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
             `}
           >
@@ -376,7 +368,7 @@ export default function PengaturanPage() {
             className={`
               whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
               ${activeTab === 'template'
-                ? 'border-indigo-500 text-indigo-600'
+                ? 'border-cyan-500 text-cyan-700'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
             `}
           >
@@ -396,7 +388,7 @@ export default function PengaturanPage() {
         <button
           type="submit"
           disabled={isSaving || isUploading}
-          className="w-full md:w-auto rounded-xl bg-indigo-600 px-6 py-3 text-base font-semibold text-white shadow-lg transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
+          className="w-full md:w-auto rounded-xl bg-cyan-700 px-6 py-3 text-base font-semibold text-white shadow-lg transition-colors hover:bg-cyan-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 disabled:opacity-50"
         >
           {(isSaving || isUploading) ? 'Menyimpan...' : 'Simpan Semua Pengaturan'}
         </button>

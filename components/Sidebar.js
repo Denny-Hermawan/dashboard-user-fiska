@@ -6,25 +6,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 
-// --- Ikon Internal Sidebar ---
-const CloseIcon = () => (
-  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-  </svg>
-);
-
-const ChevronLeftIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-  </svg>
-);
-
-// Ikon untuk panah dropdown
-const ChevronDownIcon = () => (
-  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-  </svg>
-);
+// --- Ikon Baru (Material Design) ---
+// DIUBAH: MdChevronDown diganti menjadi MdKeyboardArrowDown
+import { MdClose, MdChevronLeft, MdKeyboardArrowDown } from 'react-icons/md';
 // --- Akhir Ikon ---
 
 
@@ -41,7 +25,7 @@ const SidebarLink = ({ item, isExpanded, pathname, closeMobileSidebar }) => {
         ${isExpanded ? 'gap-3 px-3 py-2.5' : 'justify-center p-2.5'}
         ${
           isActive
-            ? 'bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700 shadow-sm'
+            ? 'bg-gradient-to-r from-cyan-50 to-cyan-100 text-cyan-800 shadow-sm' // Diubah
             : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
         }
       `}
@@ -55,7 +39,7 @@ const SidebarLink = ({ item, isExpanded, pathname, closeMobileSidebar }) => {
         <>
           <span className="truncate">{item.name}</span>
           {isActive && (
-            <span className="ml-auto h-1.5 w-1.5 rounded-full bg-indigo-600"></span>
+            <span className="ml-auto h-1.5 w-1.5 rounded-full bg-cyan-700"></span> 
           )}
         </>
       )}
@@ -99,7 +83,7 @@ const SidebarDropdown = ({ item, isExpanded, pathname, closeMobileSidebar }) => 
           transition-all duration-200 ease-in-out gap-3 px-3 py-2.5
           ${
             isChildActive && !isOpen // Aktif tapi ditutup
-              ? 'bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700 shadow-sm'
+              ? 'bg-gradient-to-r from-cyan-50 to-cyan-100 text-cyan-800 shadow-sm' // Diubah
               : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
           }
         `}
@@ -109,7 +93,7 @@ const SidebarDropdown = ({ item, isExpanded, pathname, closeMobileSidebar }) => 
         </span>
         <span className="truncate flex-1 text-left">{item.name}</span>
         <span className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : 'rotate-0'}`}>
-          <ChevronDownIcon />
+          <MdKeyboardArrowDown className="w-4 h-4" /> {/* DIUBAH: Ikon yang benar */}
         </span>
       </button>
 
@@ -158,7 +142,7 @@ const Sidebar = ({ isExpanded, isMobileOpen, toggleSidebar, setIsMobileOpen, men
         {isExpanded ? (
           <>
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 shadow-lg shadow-indigo-200">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-700 to-cyan-800 shadow-lg shadow-cyan-200"> 
                 <Image
                   src="/assets/images/logo.png" // Path logo di folder public
                   alt="Logo"
@@ -178,10 +162,10 @@ const Sidebar = ({ isExpanded, isMobileOpen, toggleSidebar, setIsMobileOpen, men
               aria-label="Toggle sidebar"
             >
               <span className="md:hidden">
-                <CloseIcon />
+                <MdClose className="w-6 h-6" /> 
               </span>
               <span className="hidden md:block">
-                <ChevronLeftIcon />
+                <MdChevronLeft className="w-5 h-5" /> 
               </span>
             </button>
           </>
@@ -191,7 +175,7 @@ const Sidebar = ({ isExpanded, isMobileOpen, toggleSidebar, setIsMobileOpen, men
             className="mx-auto rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
             aria-label="Expand sidebar"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-700 to-cyan-800"> 
               <Image
                 src="/assets/images/logo.png" // Path logo di folder public
                 alt="Logo"
@@ -249,10 +233,10 @@ const Sidebar = ({ isExpanded, isMobileOpen, toggleSidebar, setIsMobileOpen, men
       {/* Footer (Tidak berubah) */}
       {isExpanded && (
         <div className="border-t border-gray-100 p-4">
-          <div className="rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 p-4">
-            <p className="text-xs font-semibold text-indigo-900">Butuh Bantuan?</p>
-            <p className="mt-1 text-xs text-indigo-700">Hubungi support kami</p>
-            <button className="mt-3 w-full rounded-lg bg-white px-3 py-2 text-xs font-medium text-indigo-700 shadow-sm transition-shadow hover:shadow-md">
+          <div className="rounded-xl bg-gradient-to-br from-cyan-50 to-cyan-100 p-4"> 
+            <p className="text-xs font-semibold text-cyan-900">Butuh Bantuan?</p> 
+            <p className="mt-1 text-xs text-cyan-800">Hubungi support kami</p> 
+            <button className="mt-3 w-full rounded-lg bg-white px-3 py-2 text-xs font-medium text-cyan-800 shadow-sm transition-shadow hover:shadow-md"> 
               Kontak Support
             </button>
           </div>

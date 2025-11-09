@@ -3,25 +3,15 @@
 
 import React, { useState, useCallback } from 'react';
 
-// --- Ikon ---
-const EditIcon = () => (
-  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-);
-const LogoIcon = () => (
-  <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l-1.586-1.586a2 2 0 00-2.828 0L6 16" /></svg>
-);
-const TextIcon = () => (
-  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h7" /></svg>
-);
-const RowIcon = () => (
-  <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2m8-3v13m0-13a2 2 0 012 2v9a2 2 0 01-2 2h-2a2 2 0 01-2-2V7a2 2 0 012-2h2z" /></svg>
-);
-const SummaryIcon = () => (
-  <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m-6 4h6m-6 4h6M6 21h12a2 2 0 002-2V5a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-);
-const CutIcon = () => (
-  <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121M12 12l2.879 2.879M12 12l-2.879-2.879M3 3v.01M3 7v.01M3 11v.01M3 15v.01M3 19v.01M7 3v.01M11 3v.01M15 3v.01M19 3v.01" /></svg>
-);
+// --- Ikon Baru (Material Design) ---
+import {
+  MdEdit,
+  MdImage,
+  MdTextFields,
+  MdViewColumn,
+  MdReceipt,
+  MdContentCut
+} from 'react-icons/md';
 // --- Akhir Ikon ---
 
 
@@ -29,16 +19,16 @@ const CutIcon = () => (
 const TemplateElementEditor = ({ element, onToggle, onEdit }) => {
   const { type, enabled = true, value, label } = element;
 
-  let Icon = TextIcon;
+  let Icon = () => <MdTextFields className="w-4 h-4 text-gray-500" />;
   let title = value || type;
-  if (type === 'logo') { Icon = LogoIcon; title = "Logo Toko"; }
-  if (type === 'row') { Icon = RowIcon; title = `Baris: [${(element.cols || []).join(', ')}]`; }
-  if (type === 'summary_line') { Icon = SummaryIcon; title = `Summary: ${label}`; }
+  if (type === 'logo') { Icon = () => <MdImage className="w-4 h-4 text-cyan-600" />; title = "Logo Toko"; }
+  if (type === 'row') { Icon = () => <MdViewColumn className="w-4 h-4 text-cyan-600" />; title = `Baris: [${(element.cols || []).join(', ')}]`; }
+  if (type === 'summary_line') { Icon = () => <MdReceipt className="w-4 h-4 text-cyan-600" />; title = `Summary: ${label}`; }
   if (type === 'horizontal_line') { Icon = () => <span className="text-gray-400">---</span>; title = `Garis (${element.char || '-'})`; }
   if (type === 'empty_line') { Icon = () => <span className="text-gray-400">...</span>; title = `Baris Kosong (${element.count || 1})`; }
-  if (type === 'cut') { Icon = CutIcon; title = "Potong Kertas"; }
-  if (type === 'item_header') { Icon = RowIcon; title = "Header Item (Tabel)"; }
-  if (type === 'item_body') { Icon = RowIcon; title = "Badan Item (Tabel)"; }
+  if (type === 'cut') { Icon = () => <MdContentCut className="w-4 h-4 text-red-600" />; title = "Potong Kertas"; }
+  if (type === 'item_header') { Icon = () => <MdViewColumn className="w-4 h-4 text-cyan-600" />; title = "Header Item (Tabel)"; }
+  if (type === 'item_body') { Icon = () => <MdViewColumn className="w-4 h-4 text-cyan-600" />; title = "Badan Item (Tabel)"; }
   
   const canEdit = type !== 'row' && type !== 'item_header' && type !== 'item_body' && type !== 'cut';
 
@@ -53,10 +43,10 @@ const TemplateElementEditor = ({ element, onToggle, onEdit }) => {
           <button
             type="button"
             onClick={onEdit}
-            className="p-1.5 rounded text-gray-400 hover:text-indigo-600 hover:bg-indigo-50"
+            className="p-1.5 rounded text-gray-400 hover:text-cyan-700 hover:bg-cyan-50"
             title="Edit"
           >
-            <EditIcon />
+            <MdEdit className="w-4 h-4" />
           </button>
         )}
         <div className="w-10">
@@ -64,7 +54,7 @@ const TemplateElementEditor = ({ element, onToggle, onEdit }) => {
           type="checkbox"
           checked={enabled}
           onChange={(e) => onToggle(e.target.checked)}
-          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+          className="h-4 w-4 rounded border-gray-300 text-cyan-700 focus:ring-cyan-500"
           title={enabled ? "Aktif" : "Nonaktif"}
         />
         </div>
@@ -106,7 +96,7 @@ const EditElementModal = ({ isOpen, onClose, element, onSave }) => {
             <input
               type="text" name="value" id="value"
               value={data.value || ''} onChange={handleChange}
-              className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900"
+              className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-200"
             />
           </div>
         )}
@@ -119,7 +109,7 @@ const EditElementModal = ({ isOpen, onClose, element, onSave }) => {
               <input
                 type="text" name="label" id="label"
                 value={data.label || ''} onChange={handleChange}
-                className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900"
+                className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-200"
               />
             </div>
             <div>
@@ -127,7 +117,7 @@ const EditElementModal = ({ isOpen, onClose, element, onSave }) => {
               <input
                 type="text" name="value" id="value"
                 value={data.value || ''} onChange={handleChange}
-                className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900"
+                className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-200"
               />
             </div>
           </>
@@ -140,7 +130,7 @@ const EditElementModal = ({ isOpen, onClose, element, onSave }) => {
             <select
               id="align" name="align"
               value={data.align || 'left'} onChange={handleChange}
-              className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900"
+              className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-200"
             >
               <option value="left">Left</option>
               <option value="center">Center</option>
@@ -154,7 +144,7 @@ const EditElementModal = ({ isOpen, onClose, element, onSave }) => {
             <select
               id="style" name="style"
               value={data.style || 'normal'} onChange={handleChange}
-              className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900"
+              className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-200"
             >
               <option value="normal">Normal</option>
               <option value="bold">Bold</option>
@@ -167,7 +157,7 @@ const EditElementModal = ({ isOpen, onClose, element, onSave }) => {
         {/* Tombol Aksi Modal */}
         <div className="mt-6 flex gap-3 pt-4">
           <button type="button" onClick={onClose} className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700">Batal</button>
-          <button type="button" onClick={handleSave} className="flex-1 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white">Simpan</button>
+          <button type="button" onClick={handleSave} className="flex-1 rounded-xl bg-cyan-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-cyan-800">Simpan</button>
         </div>
       </div>
     </div>
@@ -219,7 +209,7 @@ export default function ReceiptTemplateEditor({ template, onChange }) {
               className={`
                 whitespace-nowrap pb-3 px-1 border-b-2 font-medium text-sm capitalize
                 ${activeTemplateTab === key
-                  ? 'border-indigo-500 text-indigo-600'
+                  ? 'border-cyan-500 text-cyan-700'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
               `}
             >

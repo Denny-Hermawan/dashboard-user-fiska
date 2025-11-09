@@ -7,6 +7,11 @@ import { collection, query, where, Timestamp, orderBy, getDocs, limit } from "fi
 import { auth, db } from "@/lib/firebaseConfig";
 import { useRouter } from 'next/navigation';
 
+// --- Ikon Baru (Material Design) ---
+import { MdInbox } from 'react-icons/md';
+// --- Akhir Ikon ---
+
+
 // --- Helper Functions ---
 
 // Mengubah tanggal menjadi YYYY-MM-DD untuk input
@@ -54,7 +59,7 @@ const formatDateTime = (timestamp) => {
 const LoadingSpinner = ({ message = "Memuat data..." }) => (
   <div className="flex h-64 items-center justify-center">
     <div className="flex items-center gap-3">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600"></div>
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-cyan-200 border-t-cyan-600"></div>
       <span className="text-sm font-medium text-gray-600">{message}</span>
     </div>
   </div>
@@ -63,7 +68,7 @@ const LoadingSpinner = ({ message = "Memuat data..." }) => (
 const EmptyState = () => (
   <div className="flex flex-col items-center justify-center py-16">
     <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-3xl">
-      📭
+      <MdInbox className="h-12 w-12 text-gray-400" />
     </div>
     <p className="mt-4 text-sm font-medium text-gray-900">Tidak ada transaksi</p>
     <p className="mt-1 text-sm text-gray-500">Ubah filter Anda atau buat transaksi baru.</p>
@@ -184,7 +189,7 @@ export default function TransaksiPage() {
               value={filterStartDate}
               onChange={(e) => setFilterStartDate(e.target.value)}
               // TAMBAHKAN text-gray-900 DI SINI
-              className="mt-1 block w-full rounded-lg border-gray-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm text-gray-900"
+              className="mt-1 block w-full rounded-lg border-gray-200 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 sm:text-sm text-gray-900"
             />
           </div>
           
@@ -199,7 +204,7 @@ export default function TransaksiPage() {
               value={filterEndDate}
               onChange={(e) => setFilterEndDate(e.target.value)}
               // TAMBAHKAN text-gray-900 DI SINI
-              className="mt-1 block w-full rounded-lg border-gray-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm text-gray-900"
+              className="mt-1 block w-full rounded-lg border-gray-200 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 sm:text-sm text-gray-900"
             />
           </div>
 
@@ -213,7 +218,7 @@ export default function TransaksiPage() {
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
               // TAMBAHKAN text-gray-900 DI SINI
-              className="mt-1 block w-full rounded-lg border-gray-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm text-gray-900"
+              className="mt-1 block w-full rounded-lg border-gray-200 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 sm:text-sm text-gray-900"
             >
               <option value="semua">Semua</option>
               <option value="selesai">Selesai</option>
@@ -225,7 +230,7 @@ export default function TransaksiPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
+            className="w-full rounded-xl bg-cyan-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-cyan-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 disabled:opacity-50"
           >
             {isLoading ? 'Memuat...' : 'Terapkan Filter'}
           </button>

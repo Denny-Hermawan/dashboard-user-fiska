@@ -6,27 +6,9 @@ import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, order
 import { auth, db } from "@/lib/firebaseConfig";
 import { onAuthStateChanged } from "firebase/auth";
 
-// Ikon sederhana
-const MenuIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h7" />
-  </svg>
-);
-const EditIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-  </svg>
-);
-const DeleteIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-  </svg>
-);
-const AddIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-  </svg>
-);
+// --- Ikon Baru (Material Design) ---
+import { MdCategory, MdEdit, MdDelete, MdAdd } from 'react-icons/md';
+// --- Akhir Ikon ---
 
 // Komponen Modal Kategori (Form)
 const CategoryModal = ({ isOpen, onClose, category, userId }) => {
@@ -109,7 +91,7 @@ const CategoryModal = ({ isOpen, onClose, category, userId }) => {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Nama Kategori"
-            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-200"
             disabled={isSubmitting}
             required
           />
@@ -126,7 +108,7 @@ const CategoryModal = ({ isOpen, onClose, category, userId }) => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 disabled:bg-indigo-300"
+              className="flex-1 rounded-xl bg-cyan-700 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-cyan-800 disabled:bg-cyan-300"
             >
               {isSubmitting ? 'Menyimpan...' : 'Simpan'}
             </button>
@@ -216,9 +198,9 @@ export default function MenuPage() {
         <h2 className="text-3xl font-bold text-gray-900">Kelola Kategori</h2>
         <button
           onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:bg-indigo-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+          className="flex items-center gap-2 rounded-xl bg-cyan-700 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:bg-cyan-800 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2"
         >
-          <AddIcon />
+          <MdAdd className="w-5 h-5" />
           <span>Tambah Kategori</span>
         </button>
       </div>
@@ -242,8 +224,8 @@ export default function MenuPage() {
                   <tr key={cat.id} className="transition-colors hover:bg-gray-50">
                     <td className="whitespace-nowrap px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-700">
-                          <MenuIcon />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-100 text-cyan-800">
+                          <MdCategory className="w-5 h-5" />
                         </div>
                         <p className="text-sm font-medium text-gray-900">{cat.name}</p>
                       </div>
@@ -251,17 +233,17 @@ export default function MenuPage() {
                     <td className="whitespace-nowrap px-6 py-4 text-right">
                       <button
                         onClick={() => handleOpenModal(cat)}
-                        className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-indigo-100 hover:text-indigo-700"
+                        className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-cyan-100 hover:text-cyan-800"
                         title="Edit"
                       >
-                        <EditIcon />
+                        <MdEdit className="w-5 h-5" />
                       </button>
                       <button
                         onClick={() => handleDelete(cat.id, cat.name)}
                         className="ml-2 rounded-lg p-2 text-gray-500 transition-colors hover:bg-red-100 hover:text-red-700"
                         title="Hapus"
                       >
-                        <DeleteIcon />
+                        <MdDelete className="w-5 h-5" />
                       </button>
                     </td>
                   </tr>

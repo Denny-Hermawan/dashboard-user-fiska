@@ -7,6 +7,16 @@ import { collection, query, where, Timestamp, orderBy, getDocs } from "firebase/
 import { auth, db } from "@/lib/firebaseConfig";
 import { useRouter } from 'next/navigation';
 
+// --- Ikon Baru (Material Design) ---
+import {
+  MdInbox,
+  MdAttachMoney,
+  MdInventory2,
+  MdTrendingUp
+} from 'react-icons/md';
+// --- Akhir Ikon ---
+
+
 // --- Helper Functions ---
 const formatDateToInput = (date) => date.toISOString().split('T')[0];
 const getToday = () => new Date();
@@ -24,7 +34,7 @@ const formatRupiah = (value) => {
 const LoadingSpinner = ({ message = "Memuat data..." }) => (
   <div className="flex h-64 items-center justify-center">
     <div className="flex items-center gap-3">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600"></div>
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-cyan-200 border-t-cyan-600"></div>
       <span className="text-sm font-medium text-gray-600">{message}</span>
     </div>
   </div>
@@ -32,7 +42,9 @@ const LoadingSpinner = ({ message = "Memuat data..." }) => (
 
 const EmptyState = () => (
   <div className="flex flex-col items-center justify-center py-16">
-    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-3xl">📭</div>
+    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-3xl">
+      <MdInbox className="h-12 w-12 text-gray-400" />
+    </div>
     <p className="mt-4 text-sm font-medium text-gray-900">Tidak ada data</p>
     <p className="mt-1 text-sm text-gray-500">Tidak ada penjualan pada rentang tanggal ini.</p>
   </div>
@@ -41,7 +53,7 @@ const EmptyState = () => (
 const SummaryCard = ({ title, value, icon, className = '' }) => (
   <div className={`rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100 ${className}`}>
     <div className="flex items-center gap-4">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-50 text-2xl text-indigo-600">{icon}</div>
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-cyan-50 text-2xl text-cyan-700">{icon}</div>
       <div>
         <p className="text-sm font-medium text-gray-500">{title}</p>
         <p className="mt-1 text-2xl font-bold text-gray-900 truncate">{value}</p>
@@ -183,7 +195,7 @@ export default function ProfitabilitasPage() {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold text-gray-900">Laporan Profitabilitas</h1>
 
-      {/* --- Filter Bar (Tidak berubah) --- */}
+      {/* --- Filter Bar (Tema diperbarui) --- */}
       <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
         <form onSubmit={handleFilterApply} className="grid grid-cols-1 gap-4 md:grid-cols-3 md:items-end">
           <div>
@@ -191,7 +203,7 @@ export default function ProfitabilitasPage() {
             <input
               type="date" id="startDate" value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="mt-1 block w-full rounded-lg border-gray-200 shadow-sm text-gray-900 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              className="mt-1 block w-full rounded-lg border-gray-200 shadow-sm text-gray-900 focus:border-cyan-500 focus:ring-cyan-500 sm:text-sm"
             />
           </div>
           <div>
@@ -199,23 +211,23 @@ export default function ProfitabilitasPage() {
             <input
               type="date" id="endDate" value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="mt-1 block w-full rounded-lg border-gray-200 shadow-sm text-gray-900 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              className="mt-1 block w-full rounded-lg border-gray-200 shadow-sm text-gray-900 focus:border-cyan-500 focus:ring-cyan-500 sm:text-sm"
             />
           </div>
           <button
             type="submit" disabled={isLoading}
-            className="w-full rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
+            className="w-full rounded-xl bg-cyan-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-cyan-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 disabled:opacity-50"
           >
             {isLoading ? 'Memuat...' : 'Terapkan Filter'}
           </button>
         </form>
       </div>
 
-      {/* --- KPI Cards (Tidak berubah) --- */}
+      {/* --- KPI Cards (Ikon diperbarui) --- */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <SummaryCard title="Total Omzet (Penjualan)" value={formatRupiah(kpi.totalSales)} icon="💰" />
-        <SummaryCard title="Total HPP (Harga Pokok)" value={formatRupiah(kpi.totalCost)} icon="📦" className="bg-red-50" />
-        <SummaryCard title="Total Profit (Laba Kotor)" value={formatRupiah(kpi.totalProfit)} icon="📈" className="bg-green-50" />
+        <SummaryCard title="Total Omzet (Penjualan)" value={formatRupiah(kpi.totalSales)} icon={<MdAttachMoney />} />
+        <SummaryCard title="Total HPP (Harga Pokok)" value={formatRupiah(kpi.totalCost)} icon={<MdInventory2 />} className="bg-red-50" />
+        <SummaryCard title="Total Profit (Laba Kotor)" value={formatRupiah(kpi.totalProfit)} icon={<MdTrendingUp />} className="bg-green-50" />
       </div>
 
       {/* --- Tabel Hasil Laporan (Tidak berubah) --- */}
