@@ -13,7 +13,9 @@ import {
   MdAttachMoney,
   MdCategory,
   MdReceiptLong,
-  MdInventory2
+  MdInventory2,
+  MdClose, // <-- Ikon baru untuk Modal
+  MdChevronRight // <-- Ikon baru untuk Baris Tabel
 } from 'react-icons/md';
 // --- Akhir Ikon ---
 
@@ -62,18 +64,93 @@ const SummaryCard = ({ title, value, icon, className = '' }) => (
   </div>
 );
 
+
+// --- [BARU] Komponen Modal Detail Produk ---
+const ProductDetailModal = ({ isOpen, onClose, categoryName, products }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl max-h-[80vh] flex flex-col">
+        {/* Header Modal */}
+        <div className="flex items-center justify-between border-b border-gray-100 p-6">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">Rincian Produk - {categoryName}</h3>
+            <p className="text-sm text-gray-500 mt-0.5">Daftar produk yang terjual dalam kategori ini</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
+            title="Tutup"
+          >
+            <MdClose className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* Konten Scrollable (Tabel) */}
+        <div className="overflow-y-auto">
+          {products.length === 0 ? (
+             <p className="p-10 text-center text-sm text-gray-500">Tidak ada rincian produk.</p>
+          ) : (
+            <table className="min-w-full divide-y divide-gray-100">
+              <thead className="bg-gray-50 sticky top-0">
+                <tr>
+                  <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Nama Produk</th>
+                  <th className="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-600">Terjual (Qty)</th>
+                  <th className="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-600">Total Omzet</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {products.map((prod, index) => (
+                  <tr key={prod.name + index} className="transition-colors hover:bg-gray-50">
+                    <td className="whitespace-nowrap px-6 py-4">
+                      <p className="text-sm font-medium text-gray-900">{prod.name}</p>
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-bold text-cyan-700">{prod.qty}</td>
+                    <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium text-gray-700">{formatRupiah(prod.sales)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        
+        {/* Footer Modal */}
+        <div className="border-t border-gray-100 p-4 text-right">
+            <button
+              onClick={onClose}
+              className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+            >
+              Tutup
+            </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+// --- [AKHIR] Komponen Modal Detail Produk ---
+
+
 // --- Main Page Component ---
 export default function LaporanKategoriPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // --- State untuk Laporan ---
+  // State untuk Filter
   const [startDate, setStartDate] = useState(formatDateToInput(getToday()));
   const [endDate, setEndDate] = useState(formatDateToInput(getToday()));
   
+  // State untuk Laporan Utama
   const [reportData, setReportData] = useState([]); // Data tabel
   const [kpi, setKpi] = useState({ totalSales: 0, totalTxn: 0, totalItems: 0 });
+
+  // --- [BARU] State untuk Modal ---
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalData, setModalData] = useState([]); // Berisi daftar produk untuk modal
+  const [selectedCategoryName, setSelectedCategoryName] = useState('');
+  // --- [AKHIR] State untuk Modal ---
+
 
   // 1. Cek Autentikasi
   useEffect(() => {
@@ -88,6 +165,7 @@ export default function LaporanKategoriPage() {
   }, [router]);
 
   // 2. Fungsi Fetch Laporan
+  // --- [DIPERBARUI] untuk mengambil data rincian produk ---
   const fetchReport = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
@@ -95,17 +173,15 @@ export default function LaporanKategoriPage() {
     setKpi({ totalSales: 0, totalTxn: 0, totalItems: 0 });
 
     try {
-      // --- BARU: Langkah A: Fetch semua Products ---
-      // Kita perlukan ini untuk memetakan produkIdString ke kategori
+      // Langkah A: Fetch semua Products untuk mapping Kategori
       const productsRef = collection(db, "users", user.uid, "products");
       const productsSnap = await getDocs(productsRef);
       const productCategoryMap = new Map();
       productsSnap.docs.forEach(doc => {
-        // Simpan: 'produkIdString' -> 'kategori'
         productCategoryMap.set(doc.id, doc.data().kategori || 'Tanpa Kategori');
       });
 
-      // --- Langkah B: Fetch Transaksi (logika tidak berubah) ---
+      // Langkah B: Fetch Transaksi
       const dateStart = new Date(startDate);
       dateStart.setHours(0, 0, 0, 0);
       const dateEnd = new Date(endDate);
@@ -121,8 +197,8 @@ export default function LaporanKategoriPage() {
       
       const txSnap = await getDocs(txQuery);
 
-      // --- Langkah C: Proses Data (Agregasi per Kategori) ---
-      const categorySummary = new Map(); // Kunci: kategori (string)
+      // --- [DIPERBARUI] Langkah C: Proses Data (Agregasi per Kategori + Rincian Produk) ---
+      const categorySummary = new Map(); 
       let grandTotalSales = 0;
       let grandTotalTxn = 0;
       let grandTotalItems = 0;
@@ -133,28 +209,37 @@ export default function LaporanKategoriPage() {
         grandTotalTxn++;
 
         (txData.items || []).forEach(item => {
-          
-          // --- PERBAIKAN LOGIKA DI SINI ---
           const produkId = item.produkIdString;
-          if (!produkId || item.isComplimentary) return; // Abaikan item komplimen/tanpa ID
+          if (!produkId || item.isComplimentary) return; 
 
-          // Ambil kategori DARI MAP, bukan dari 'item'
           const kategori = productCategoryMap.get(produkId) || 'Tanpa Kategori';
-          // --- AKHIR PERBAIKAN ---
-
           const qty = item.jumlah || 0;
           const sales = (item.produkHarga || 0) * qty; 
           
-          grandTotalItems += qty; // <-- Ini sekarang akan bertambah
+          grandTotalItems += qty;
           
+          // Ambil atau buat data ringkasan kategori
           const summary = categorySummary.get(kategori) || {
-            name: kategori, // Simpan nama kategori
+            name: kategori,
             qty: 0,
             sales: 0,
+            products: new Map() // <-- [BARU] Siapkan map untuk rincian produk
           };
           
           summary.qty += qty;
           summary.sales += sales;
+          
+          // --- [BARU] Tambahkan data ke rincian produk ---
+          const productName = item.baseProdukNama || item.produkNama || 'Produk Dihapus';
+          const productSummary = summary.products.get(produkId) || {
+            name: productName,
+            qty: 0,
+            sales: 0,
+          };
+          productSummary.qty += qty;
+          productSummary.sales += sales;
+          summary.products.set(produkId, productSummary);
+          // --- [AKHIR BARU] ---
           
           categorySummary.set(kategori, summary);
         });
@@ -164,13 +249,12 @@ export default function LaporanKategoriPage() {
       setKpi({
         totalSales: grandTotalSales,
         totalTxn: grandTotalTxn,
-        totalItems: grandTotalItems // <-- Ini sekarang akan ada nilainya
+        totalItems: grandTotalItems
       });
       
-      // Urutkan berdasarkan Omzet (Sales) Terbanyak
       const sortedReport = Array.from(categorySummary.values())
                                 .sort((a, b) => b.sales - a.sales);
-      setReportData(sortedReport); // <-- Tabel akan terisi
+      setReportData(sortedReport);
       
     } catch (error) {
       console.error("Error fetching report:", error);
@@ -178,6 +262,8 @@ export default function LaporanKategoriPage() {
       setIsLoading(false);
     }
   }, [user, startDate, endDate]);
+  // --- [AKHIR] Fungsi Fetch Laporan ---
+
 
   // 3. Fetch data saat user pertama kali dimuat atau filter berubah
   useEffect(() => {
@@ -190,12 +276,24 @@ export default function LaporanKategoriPage() {
     e.preventDefault();
     fetchReport();
   };
+
+  // --- [BARU] Fungsi untuk membuka modal ---
+  const handleCategoryClick = (categoryData) => {
+    // Ubah Map produk menjadi Array agar mudah di-render
+    const productsArray = Array.from(categoryData.products.values())
+                              .sort((a, b) => b.sales - a.sales); // Urutkan produk terlaris
+    
+    setModalData(productsArray);
+    setSelectedCategoryName(categoryData.name);
+    setIsModalOpen(true);
+  };
+
   
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold text-gray-900">Laporan Penjualan per Kategori</h1>
 
-      {/* --- Filter Bar (Tema diperbarui) --- */}
+      {/* --- Filter Bar (Tidak berubah) --- */}
       <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
         <form onSubmit={handleFilterApply} className="grid grid-cols-1 gap-4 md:grid-cols-3 md:items-end">
           <div>
@@ -223,14 +321,14 @@ export default function LaporanKategoriPage() {
         </form>
       </div>
 
-      {/* --- KPI Cards (Disederhanakan) --- */}
+      {/* --- KPI Cards (Tidak berubah) --- */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <SummaryCard title="Total Omzet (Penjualan)" value={formatRupiah(kpi.totalSales)} icon={<MdAttachMoney />} />
         <SummaryCard title="Total Transaksi" value={kpi.totalTxn.toString()} icon={<MdReceiptLong />} />
         <SummaryCard title="Total Item Terjual" value={kpi.totalItems.toString()} icon={<MdInventory2 />} />
       </div>
 
-      {/* --- Tabel Hasil Laporan (Disederhanakan) --- */}
+      {/* --- Tabel Hasil Laporan (DIPERBARUI) --- */}
       <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 overflow-hidden">
         {isLoading ? (
           <LoadingSpinner />
@@ -244,11 +342,19 @@ export default function LaporanKategoriPage() {
                   <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Nama Kategori</th>
                   <th className="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-600">Terjual (Qty)</th>
                   <th className="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-600">Total Omzet</th>
+                  <th className="relative px-6 py-3.5">
+                    <span className="sr-only">Detail</span>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
                 {reportData.map((item, index) => (
-                  <tr key={item.name + index} className="transition-colors hover:bg-gray-50">
+                  // --- [BARU] Baris tabel dibuat klikabel ---
+                  <tr 
+                    key={item.name + index} 
+                    onClick={() => handleCategoryClick(item)} // <-- Aksi klik
+                    className="transition-colors hover:bg-gray-50 cursor-pointer" // <-- Tambah cursor
+                  >
                     <td className="whitespace-nowrap px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-100 text-cyan-800">
@@ -259,6 +365,10 @@ export default function LaporanKategoriPage() {
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-bold text-cyan-700">{item.qty}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium text-gray-700">{formatRupiah(item.sales)}</td>
+                    {/* --- [BARU] Ikon panah untuk indikator --- */}
+                    <td className="whitespace-nowrap px-6 py-4 text-right text-gray-400">
+                      <MdChevronRight className="w-5 h-5" />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -266,6 +376,14 @@ export default function LaporanKategoriPage() {
           </div>
         )}
       </div>
+
+      {/* --- [BARU] Render Modal --- */}
+      <ProductDetailModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        categoryName={selectedCategoryName}
+        products={modalData}
+      />
 
     </div>
   );

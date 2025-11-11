@@ -1,12 +1,22 @@
 // app/dashboard/layout.js
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image'; 
 import { Toaster } from "sonner"; 
+import { auth, db } from "@/lib/firebaseConfig"; // <-- Impor db
+import { onAuthStateChanged } from "firebase/auth"; 
+// --- IMPOR BARU UNTUK NOTIFIKASI ---
+import { collection, query, where, Timestamp, orderBy, onSnapshot } from "firebase/firestore";
+
+// --- IMPOR SEMUA MODAL ---
+import ProductModal from '@/components/ProductModal'; 
+import CategoryModal from '@/components/CategoryModal';
+import MemberModal from '@/components/MemberModal';
+import PegawaiModal from '@/components/PegawaiModal';
 
 // --- Kumpulan Ikon (React Icons) ---
 import {
@@ -22,11 +32,11 @@ import {
   MdPeople,
   MdCardMembership,
   MdPayment,
-  MdStorefront // <-- BARU: Ditambahkan
+  MdStorefront 
 } from 'react-icons/md';
 // --- Akhir Ikon ---
 
-// --- Struktur Menu Baru (Laporan menjadi Dropdown) ---
+// --- Struktur Menu (Tidak berubah) ---
 const menuGroups = [
   {
     title: 'Operasional',
@@ -54,9 +64,7 @@ const menuGroups = [
         icon: <MdSettings className="w-6 h-6" />,
         children: [
           { name: 'Produk', path: '/dashboard/produk', icon: <MdInventory2 className="w-6 h-6" /> },
-          // --- BARU: Link Menu Online ditambahkan di sini ---
           { name: 'Menu Online', path: '/dashboard/menu-online', icon: <MdStorefront className="w-6 h-6" /> },
-          // --- AKHIR TAMBAHAN ---
           { name: 'Kategori', path: '/dashboard/menu', icon: <MdCategory className="w-6 h-6" /> },
           { name: 'Pegawai', path: '/dashboard/pegawai', icon: <MdPeople className="w-6 h-6" /> },
           { name: 'Membership', path: '/dashboard/membership', icon: <MdCardMembership className="w-6 h-6" /> },
@@ -71,10 +79,21 @@ const menuGroups = [
 export default function DashboardLayout({ children }) {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  
+  // --- State Modal Tambah Cepat ---
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
+  const [isPegawaiModalOpen, setIsPegawaiModalOpen] = useState(false);
+  
+  const [currentUserId, setCurrentUserId] = useState(null);
+
+  // --- STATE BARU UNTUK NOTIFIKASI ---
+  const [notifications, setNotifications] = useState([]);
 
   const pathname = usePathname();
   
-  // --- Logika Title (Tidak berubah, masih berfungsi) ---
+  // --- Logika Title (Tidak berubah) ---
   const allMenuItems = menuGroups.flatMap(group => 
     group.items.flatMap(item => (item.children ? item.children : [item]))
   );
@@ -82,6 +101,99 @@ export default function DashboardLayout({ children }) {
   const currentMenuItem = allMenuItems.find(item => pathname.startsWith(item.path));
   const title = currentMenuItem ? currentMenuItem.name : "Dashboard";
   // --- Akhir Logika Title ---
+
+  // Efek untuk mendapatkan User ID
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setCurrentUserId(user.uid);
+      } else {
+        setCurrentUserId(null);
+        setNotifications([]); // Hapus notif jika logout
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // --- EFEK BARU UNTUK LISTENER NOTIFIKASI ---
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    // Tentukan awal hari ini
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayStartTimestamp = Timestamp.fromDate(todayStart);
+
+    // Query untuk transaksi HARI INI
+    const q = query(
+      collection(db, "users", currentUserId, "transactions"),
+      where('tanggal', '>=', todayStartTimestamp),
+      orderBy('tanggal', 'desc')
+    );
+
+    // onSnapshot adalah listener real-time
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const newNotifications = [];
+      
+      // Kita hanya peduli pada dokumen YANG BARU DITAMBAHKAN
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added") {
+          const doc = change.doc.data();
+          const docId = change.doc.id;
+          const time = doc.tanggal.toDate(); // Konversi ke Date object
+
+          // 1. Cek Refund
+          if (doc.isRefunded) {
+            newNotifications.push({
+              id: docId,
+              type: 'refund',
+              title: `Refund ${formatRupiah(doc.total)}`,
+              desc: `Kasir: ${doc.cashierName || 'N/A'}`,
+              time: time,
+            });
+          } else {
+            // 2. Cek Order Baru (asumsi non-refund adalah order baru)
+            newNotifications.push({
+              id: docId,
+              type: 'order',
+              title: `Order Baru ${formatRupiah(doc.total)}`,
+              desc: `Pelanggan: ${doc.namaPelanggan || 'Umum'}`,
+              time: time,
+            });
+          }
+          
+          // 3. Cek Komplimen (di dalam item)
+          (doc.items || []).forEach((item, index) => {
+            if (item.isComplimentary) {
+              newNotifications.push({
+                id: `${docId}-${index}`,
+                type: 'compliment',
+                title: `Komplimen ${item.produkNama}`,
+                desc: `Oleh: ${item.complimentaryAuthorizedBy || 'N/A'}`,
+                time: time,
+              });
+            }
+          });
+        }
+      });
+      
+      // Tambahkan notifikasi baru ke state (yang terbaru di atas)
+      // Kita urutkan sekali lagi untuk memastikan urutan komplimen benar
+      setNotifications(prev => 
+          [...newNotifications, ...prev]
+          .sort((a, b) => b.time - a.time)
+      );
+      
+    }, (error) => {
+      console.error("Error listening to transactions: ", error);
+    });
+
+    // Cleanup listener saat komponen unmount atau user berubah
+    return () => unsubscribe();
+
+  }, [currentUserId]);
+  // --- AKHIR EFEK NOTIFIKASI ---
+
 
   const toggleSidebar = () => {
     if (window.innerWidth < 768) {
@@ -100,7 +212,7 @@ export default function DashboardLayout({ children }) {
         isMobileOpen={isMobileSidebarOpen}
         toggleSidebar={toggleSidebar}
         setIsMobileOpen={setIsMobileSidebarOpen}
-        menuGroups={menuGroups} // <-- Kirim struktur grup baru
+        menuGroups={menuGroups}
       />
 
       <div className={`
@@ -112,9 +224,51 @@ export default function DashboardLayout({ children }) {
           title={title}
           onToggleSidebar={toggleSidebar}
           isSidebarExpanded={isSidebarExpanded}
+          // Kirim fungsi Add Cepat
+          onQuickAddProduct={() => setIsProductModalOpen(true)}
+          onQuickAddCategory={() => setIsCategoryModalOpen(true)}
+          onQuickAddMember={() => setIsMemberModalOpen(true)}
+          onQuickAddPegawai={() => setIsPegawaiModalOpen(true)}
+          // --- KIRIM PROPS NOTIFIKASI BARU ---
+          notifications={notifications}
+          onClearNotifications={() => setNotifications([])}
         />
 
         <main className="flex-1 p-4 md:p-6 lg:p-8">{children}</main>
+        
+        {/* --- Render Semua Modal (Tidak Berubah) --- */}
+        {isProductModalOpen && (
+          <ProductModal
+            isOpen={isProductModalOpen}
+            onClose={() => setIsProductModalOpen(false)}
+            product={null} 
+            userId={currentUserId}
+          />
+        )}
+        {isCategoryModalOpen && (
+          <CategoryModal
+            isOpen={isCategoryModalOpen}
+            onClose={() => setIsCategoryModalOpen(false)}
+            category={null}
+            userId={currentUserId}
+          />
+        )}
+        {isMemberModalOpen && (
+          <MemberModal
+            isOpen={isMemberModalOpen}
+            onClose={() => setIsMemberModalOpen(false)}
+            member={null}
+            userId={currentUserId}
+          />
+        )}
+        {isPegawaiModalOpen && (
+          <PegawaiModal
+            isOpen={isPegawaiModalOpen}
+            onClose={() => setIsPegawaiModalOpen(false)}
+            pegawai={null}
+            userId={currentUserId}
+          />
+        )}
       </div>
 
       {isMobileSidebarOpen && (

@@ -2,12 +2,13 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, updateProfile } from "firebase/auth";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { auth, db, storage } from "@/lib/firebaseConfig"; // Pastikan storage di-ekspor
+import { auth, db, storage } from "@/lib/firebaseConfig"; 
 import Image from 'next/image';
-import ReceiptTemplateEditor from '@/components/ReceiptTemplateEditor'; // <-- Impor komponen baru
+import ReceiptTemplateEditor from '@/components/ReceiptTemplateEditor'; 
+import { toast } from "sonner"; 
 
 // --- Ikon Baru (Material Design) ---
 import {
@@ -15,12 +16,14 @@ import {
   MdStorefront,
   MdLocationOn,
   MdPhone,
-  MdReceipt
+  MdReceipt,
+  MdAccountCircle, 
+  MdOutlineBadge 
 } from 'react-icons/md';
 // --- Akhir Ikon ---
 
 
-// --- JSON Template Struk Default (dari settings_service.dart) ---
+// --- JSON Template Struk Default (Tidak berubah) ---
 const _defaultReceiptTemplateJson = `
 {
   "kasir": {
@@ -47,7 +50,9 @@ const _defaultReceiptTemplateJson = `
 
 export default function PengaturanPage() {
   const [user, setUser] = useState(null);
-  const [activeTab, setActiveTab] = useState('info'); // 'info' atau 'template'
+  
+  // --- STATE TAB DIUBAH (Hapus default 'info') ---
+  const [activeTab, setActiveTab] = useState('info'); 
 
   // State untuk Tab Info Toko
   const [settings, setSettings] = useState({
@@ -61,7 +66,10 @@ export default function PengaturanPage() {
   const [previewUrl, setPreviewUrl] = useState('');
 
   // State untuk Tab Template Struk
-  const [receiptTemplate, setReceiptTemplate] = useState(null); // Akan diisi object JSON
+  const [receiptTemplate, setReceiptTemplate] = useState(null);
+
+  // State Tab Akun Saya
+  const [displayName, setDisplayName] = useState('');
 
   // State UI
   const [isLoading, setIsLoading] = useState(true);
@@ -69,7 +77,20 @@ export default function PengaturanPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState(null);
   
-  // 1. Cek Autentikasi Pengguna
+  
+  // --- EFEK BARU: Membaca Query Param untuk Tab ---
+  useEffect(() => {
+    // Cek query param saat komponen dimuat di client
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (tab === 'akun' || tab === 'info' || tab === 'template') {
+      setActiveTab(tab);
+    }
+    // Jika tidak ada param, defaultnya akan tetap 'info' (dari state awal)
+  }, []); // [] = hanya jalan sekali saat load
+
+  
+  // 1. Cek Autentikasi Pengguna & Set Data Akun
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (!currentUser) {
@@ -77,12 +98,13 @@ export default function PengaturanPage() {
         setIsLoading(false);
       } else {
         setUser(currentUser);
+        setDisplayName(currentUser.displayName || '');
       }
     });
     return () => unsubscribe();
   }, []);
 
-  // 2. Ambil SEMUA Data Pengaturan dari Firestore
+  // 2. Ambil Data Pengaturan TOKO & STRUK dari Firestore
   useEffect(() => {
     if (!user) return;
 
@@ -126,7 +148,7 @@ export default function PengaturanPage() {
       setIsLoading(false);
     }, (err) => {
       console.error("Error fetching settings:", err);
-      setError("Gagal memuat pengaturan.");
+      setError("Gagal memuat pengaturan toko.");
       setIsLoading(false);
     });
 
@@ -156,7 +178,7 @@ export default function PengaturanPage() {
     setReceiptTemplate(newTemplate);
   }, []);
 
-  // --- 3. Logika Simpan SEMUA Pengaturan ---
+  // 3. Logika Simpan SEMUA Pengaturan
   const handleSaveSettings = async (e) => {
     e.preventDefault();
     if (!user || isSaving || isUploading) return;
@@ -167,7 +189,7 @@ export default function PengaturanPage() {
     let finalLogoUrl = settings.logoUrl;
 
     try {
-      // --- Langkah 3a: Upload Logo Baru (jika ada) ---
+      // 3a: Upload Logo Baru (jika ada)
       if (newLogoFile) {
         setIsUploading(true);
         const fileExtension = newLogoFile.name.split('.').pop();
@@ -181,31 +203,34 @@ export default function PengaturanPage() {
         setNewLogoFile(null);
       }
 
-      // --- Langkah 3b: Siapkan SEMUA data untuk disimpan ---
+      // 3b: Simpan Pengaturan TOKO & STRUK (Shared)
       const settingsRef = doc(db, "users", user.uid, "settings", "config");
-      
-      // Ubah template object kembali menjadi string JSON
-      const finalTemplateJson = JSON.stringify(receiptTemplate, null, 2); // 'null, 2' untuk pretty-print
+      const finalTemplateJson = JSON.stringify(receiptTemplate, null, 2); 
 
       const settingsToSave = {
-        // Data dari Tab Info Toko
         storeName: settings.storeName,
         storeAddress: settings.storeAddress,
         storePhone: settings.storePhone,
         receiptLogoWidth: Number(settings.receiptLogoWidth) || 384,
         logoUrl: finalLogoUrl,
-        // Data dari Tab Template Struk
         receiptTemplateJson: finalTemplateJson,
       };
 
-      // Gunakan setDoc (bukan updateDoc) untuk membuat/menimpa
       await setDoc(settingsRef, settingsToSave, { merge: true });
       
-      alert("Pengaturan berhasil disimpan!");
+      // 3c: Simpan Pengaturan AKUN (Global Auth)
+      if (displayName.trim() !== (user.displayName || '')) {
+        await updateProfile(auth.currentUser, {
+          displayName: displayName.trim()
+        });
+      }
+      
+      toast.success("Pengaturan berhasil disimpan!");
 
     } catch (err) {
       console.error("Error saving settings:", err);
       setError(err.message || "Gagal menyimpan pengaturan.");
+      toast.error(err.message || "Gagal menyimpan pengaturan.");
     } finally {
       setIsSaving(false);
       setIsUploading(false);
@@ -221,7 +246,7 @@ export default function PengaturanPage() {
     );
   }
 
-  // --- Komponen Tab Info Toko (dipisah agar rapi) ---
+  // --- Komponen Tab Info Toko (Tidak berubah) ---
   const renderInfoTokoTab = () => (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       {/* Kolom Kiri: Form Informasi */}
@@ -270,7 +295,7 @@ export default function PengaturanPage() {
         </div>
       </div>
 
-      {/* Kolom Kanan: Upload Logo */}
+      {/* Kolom Kanan: Upload Logo (Tidak berubah) */}
       <div className="lg:col-span-1 rounded-2xl bg-white p-6 md:p-8 shadow-sm ring-1 ring-gray-100 space-y-4">
         <h2 className="text-xl font-bold text-gray-900">Logo Toko</h2>
         <div className="w-full h-48 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50 overflow-hidden">
@@ -327,7 +352,7 @@ export default function PengaturanPage() {
     </div>
   );
 
-  // --- Komponen Tab Template Struk ---
+  // --- Komponen Tab Template Struk (Tidak berubah) ---
   const renderTemplateStrukTab = () => (
     <div className="rounded-2xl bg-white p-6 md:p-8 shadow-sm ring-1 ring-gray-100">
       {receiptTemplate ? (
@@ -338,6 +363,48 @@ export default function PengaturanPage() {
       ) : (
         <p>Memuat editor template...</p>
       )}
+    </div>
+  );
+
+  // --- Komponen Tab Akun Saya (Tidak berubah) ---
+  const renderAkunSayaTab = () => (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* Kolom Kiri: Form Akun */}
+      <div className="lg:col-span-2 rounded-2xl bg-white p-6 md:p-8 shadow-sm ring-1 ring-gray-100 space-y-6">
+        <h2 className="text-xl font-bold text-gray-900">Akun Saya</h2>
+        
+        {/* Nama Tampilan */}
+        <div>
+          <label htmlFor="displayName" className="block text-sm font-medium text-gray-700">Nama Tampilan</label>
+          <div className="relative mt-1">
+            <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><MdOutlineBadge className="w-5 h-5 text-gray-400" /></span>
+            <input
+              type="text" id="displayName" name="displayName"
+              value={displayName} 
+              onChange={(e) => setDisplayName(e.target.value)} // Update state displayName
+              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 pl-10 text-gray-900 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-200"
+              required
+            />
+          </div>
+          <p className="mt-2 text-xs text-gray-500">
+            Nama ini akan muncul di header dan saat Anda login.
+          </p>
+        </div>
+
+        {/* Email (Read-only) */}
+        <div>
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email Login</label>
+          <div className="relative mt-1">
+            <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><MdAccountCircle className="w-5 h-5 text-gray-400" /></span>
+            <input
+              type="email" id="email" name="email"
+              value={user.email || ''}
+              disabled // Email tidak bisa diubah
+              className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 pl-10 text-gray-500 cursor-not-allowed"
+            />
+          </div>
+        </div>
+      </div>
     </div>
   );
 
@@ -374,12 +441,27 @@ export default function PengaturanPage() {
           >
             Template Struk
           </button>
+          {/* --- TOMBOL TAB BARU --- */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('akun')}
+            className={`
+              whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
+              ${activeTab === 'akun'
+                ? 'border-cyan-500 text-cyan-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
+            `}
+          >
+            Akun Saya
+          </button>
         </nav>
       </div>
 
-      {/* Konten Tab */}
+      {/* Konten Tab (Logika diperbarui) */}
       <div>
-        {activeTab === 'info' ? renderInfoTokoTab() : renderTemplateStrukTab()}
+        {activeTab === 'info' && renderInfoTokoTab()}
+        {activeTab === 'template' && renderTemplateStrukTab()}
+        {activeTab === 'akun' && renderAkunSayaTab()}
       </div>
 
       {/* Tombol Simpan Global */}

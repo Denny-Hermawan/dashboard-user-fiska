@@ -15,9 +15,43 @@ import {
   MdLanguage,
   MdDashboard,
   MdInbox,
+  MdPointOfSale, // <-- Tambahan untuk Sesi Kasir
   MdClose
 } from 'react-icons/md';
 // --- Akhir Ikon ---
+
+
+// --- Komponen Baru: Sesi Kasir ---
+const CurrentSessionCard = ({ session }) => (
+  <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
+    <div className="border-b border-gray-100 px-6 py-4">
+      <h3 className="text-lg font-bold text-gray-900">Sesi Aktif Hari Ini</h3>
+    </div>
+    {!session ? (
+      <p className="px-6 py-10 text-center text-sm text-gray-500">Belum ada sesi kasir hari ini.</p>
+    ) : (
+      <div className="divide-y divide-gray-100">
+        <div className="flex items-center gap-3 px-6 py-4">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-100 text-cyan-800">
+            <MdPointOfSale className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-500">Kasir</p>
+            <p className="text-base font-bold text-gray-900">{session.cashierName}</p>
+          </div>
+        </div>
+        <div className="px-6 py-4">
+          <p className="text-sm font-medium text-gray-500">Sesi Dimulai</p>
+          <p className="text-base font-bold text-gray-900">
+            {/* Kita gunakan fungsi formatTime yang sudah Anda miliki */}
+            {formatTime(session.startTime)}
+          </p>
+        </div>
+      </div>
+    )}
+  </div>
+);
+// --- Akhir Komponen ---
 
 
 // --- Komponen-Komponen ---
@@ -188,6 +222,9 @@ function DashboardPageContent() {
   const [allDailyTransactions, setAllDailyTransactions] = useState([]); // <-- BARU: Simpan semua
   const [isModalOpen, setIsModalOpen] = useState(false); // <-- BARU: State modal
 
+  // --- BARU: State untuk Sesi Kasir ---
+  const [currentSession, setCurrentSession] = useState(null);
+
   // Ringkasan Samping
   const [topProducts, setTopProducts] = useState([]);
   const [paymentSummary, setPaymentSummary] = useState({});
@@ -204,7 +241,7 @@ function DashboardPageContent() {
     return () => unsubscribe();
   }, [router]);
 
-  // --- Logika Fetch Data (Tidak Diubah) ---
+  // --- Logika Fetch Data (Diubah) ---
   const fetchAllDashboardData = async (currentUser) => {
     if (!currentUser) return;
     setIsLoading(true);
@@ -238,6 +275,9 @@ function DashboardPageContent() {
       const recentTxsData = [];
       const allTxsData = []; // <-- BARU: Array untuk semua transaksi
 
+      // --- BARU: Map untuk melacak sesi ---
+      const sessionsMap = new Map();
+
       transactionsSnap.forEach((docSnap) => {
         const data = docSnap.data();
         const txData = { id: docSnap.id, ...data };
@@ -249,6 +289,30 @@ function DashboardPageContent() {
         if (recentTxsData.length < 5) {
           recentTxsData.push(txData);
         }
+
+        // --- BARU: Logika Sesi ---
+        // (Mirip laporan kasir, tapi disesuaikan untuk query 'desc')
+        const txTime = data.tanggal;
+        const sessionId = data.sessionId || 'unknown'; // 'unknown' untuk data lama
+        
+        const session = sessionsMap.get(sessionId) || {
+          sessionId: sessionId,
+          latestTxTime: txTime,   // Waktu tx terbaru di sesi ini
+          earliestTxTime: txTime, // Waktu tx terawal di sesi ini
+          cashierName: data.cashierName || null,
+        };
+
+        // Karena query 'desc', kita perlu update 'earliestTxTime'
+        if (txTime.seconds < session.earliestTxTime.seconds) {
+          session.earliestTxTime = txTime;
+        }
+        // Ambil nama kasir jika ada (untuk data lama yg mungkin null)
+        if (session.cashierName == null && data.cashierName != null) {
+          session.cashierName = data.cashierName;
+        }
+        sessionsMap.set(sessionId, session);
+        // --- AKHIR: Logika Sesi ---
+
 
         // Hanya hitung jika tidak di-refund
         if (!data.isRefunded) {
@@ -275,6 +339,23 @@ function DashboardPageContent() {
         }
       });
 
+      // --- BARU: Set Sesi Aktif ---
+      if (sessionsMap.size > 0) {
+        // Urutkan sesi berdasarkan WAKTU TRANSAKSI TERBARU (latestTxTime)
+        const allSessions = Array.from(sessionsMap.values())
+                              .sort((a, b) => b.latestTxTime.seconds - a.latestTxTime.seconds);
+        
+        const latestSession = allSessions[0]; // Sesi yang paling baru aktif
+        setCurrentSession({
+           cashierName: latestSession.cashierName || 'Sesi Lama',
+           startTime: latestSession.earliestTxTime // Waktu tx pertama di sesi itu
+        });
+      } else {
+        setCurrentSession(null);
+      }
+      // --- AKHIR: Set Sesi Aktif ---
+
+
       // --- Set State Hasil Kalkulasi ---
       setDailySales(totalSales);
       setDailyTxnCount(txCount);
@@ -298,6 +379,7 @@ function DashboardPageContent() {
       setDailyOnlineSales(0);
       setRecentTransactions([]);
       setAllDailyTransactions([]); // <-- BARU
+      setCurrentSession(null); // <-- BARU: Reset saat error
       setTopProducts([]);
       setPaymentSummary({});
     } finally {
@@ -423,6 +505,9 @@ function DashboardPageContent() {
 
       {/* Kolom Kanan (Samping) */}
       <div className="lg:col-span-1 space-y-6">
+        
+        {/* --- BARU: Sesi Kasir --- */}
+        <CurrentSessionCard session={currentSession} />
         
         {/* Produk Terlaris */}
         <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">

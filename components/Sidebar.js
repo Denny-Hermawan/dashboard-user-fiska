@@ -79,6 +79,7 @@ const SidebarDropdown = ({ item, isExpanded, pathname, closeMobileSidebar }) => 
     <div>
       {/* Tombol Induk (Parent) */}
       <button
+        suppressHydrationWarning={true} // <-- [PERBAIKAN 1] 
         onClick={() => setIsOpen(!isOpen)}
         className={`
           group flex w-full items-center rounded-xl text-sm font-medium
@@ -95,7 +96,7 @@ const SidebarDropdown = ({ item, isExpanded, pathname, closeMobileSidebar }) => 
         </span>
         <span className="truncate flex-1 text-left">{item.name}</span>
         <span className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : 'rotate-0'}`}>
-          <MdKeyboardArrowDown className="w-4 h-4" /> {/* DIUBAH: Ikon yang benar */}
+          <MdKeyboardArrowDown className="w-4 h-4" /> 
         </span>
       </button>
 
@@ -159,6 +160,7 @@ const Sidebar = ({ isExpanded, isMobileOpen, toggleSidebar, setIsMobileOpen, men
               </div>
             </div>
             <button
+              suppressHydrationWarning={true} // <-- [PERBAIKAN 3 BARU]
               onClick={toggleSidebar}
               className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
               aria-label="Toggle sidebar"
@@ -238,7 +240,10 @@ const Sidebar = ({ isExpanded, isMobileOpen, toggleSidebar, setIsMobileOpen, men
           <div className="rounded-xl bg-gradient-to-br from-cyan-50 to-cyan-100 p-4"> 
             <p className="text-xs font-semibold text-cyan-900">Butuh Bantuan?</p> 
             <p className="mt-1 text-xs text-cyan-800">Hubungi support kami</p> 
-            <button className="mt-3 w-full rounded-lg bg-white px-3 py-2 text-xs font-medium text-cyan-800 shadow-sm transition-shadow hover:shadow-md"> 
+            <button 
+              suppressHydrationWarning={true} // <-- [PERBAIKAN 2]
+              className="mt-3 w-full rounded-lg bg-white px-3 py-2 text-xs font-medium text-cyan-800 shadow-sm transition-shadow hover:shadow-md"
+            > 
               Kontak Support
             </button>
           </div>
