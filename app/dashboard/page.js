@@ -309,174 +309,176 @@ function DashboardPageContent() {
     return <LoadingSpinner message="Memuat dashboard..." />;
   }
 
+  // --- PERUBAHAN TATA LETAK DIMULAI DI SINI ---
   return (
-    <div className="space-y-6">
-      {/* Welcome Card (Tema diperbarui) */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-700 via-cyan-800 to-cyan-900 p-8 text-white shadow-xl">
-         <div className="absolute right-0 top-0 h-64 w-64 translate-x-32 -translate-y-32 rounded-full bg-white opacity-10"></div>
-        <div className="absolute bottom-0 left-0 h-48 w-48 -translate-x-24 translate-y-24 rounded-full bg-white opacity-10"></div>
-        <div className="relative">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-2xl"><MdDashboard /></span>
-            <span className="text-sm font-medium opacity-90">Selamat Datang Kembali</span>
-          </div>
-          <h2 className="text-3xl font-bold mb-2">
-            {user.displayName || 'Pengguna'}
-          </h2>
-          <p className="text-sm opacity-90">
-            {storeName} • {new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-          </p>
-        </div>
-      </div>
-
-      {/* Summary Cards (Ikon diperbarui) */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryCard title="Penjualan Hari Ini" value={formatRupiah(dailySales)} icon={<MdAttachMoney />} />
-        <SummaryCard title="Transaksi Hari Ini" value={dailyTxnCount.toString()} icon={<MdReceiptLong />} />
-        <SummaryCard title="Produk Terjual (Hari Ini)" value={dailyItemsSold.toString()} icon={<MdInventory2 />} />
-        <SummaryCard title="Penjualan Online (Hari Ini)" value={formatRupiah(dailyOnlineSales)} icon={<MdLanguage />} />
-      </div>
-
-      {/* Tata Letak Utama (Tidak berubah) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        {/* Kolom Utama (Transaksi & Produk) */}
-        <div className="lg:col-span-2 space-y-6">
-          
-          {/* --- Transaksi Terbaru (Tema diperbarui) --- */}
-          <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 overflow-hidden">
-            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">Transaksi Terbaru</h3>
-                <p className="text-sm text-gray-500 mt-0.5">5 transaksi terakhir hari ini</p>
-              </div>
-              {/* --- TOMBOL DIPERBARUI --- */}
-              <button 
-                onClick={() => setIsModalOpen(true)} // <-- BARU: Buka modal
-                className="rounded-lg bg-cyan-50 px-4 py-2 text-sm font-medium text-cyan-700 transition-colors hover:bg-cyan-100"
-              >
-                Lihat Semua
-              </button>
-            </div>
-
-            {/* Tabel Transaksi Terbaru (Tema & Ikon diperbarui) */}
-            {recentTransactions.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16">
-                <MdInbox className="h-16 w-16 text-gray-300" />
-                <p className="mt-4 text-sm font-medium text-gray-900">Belum ada transaksi</p>
-                <p className="mt-1 text-sm text-gray-500">Transaksi hari ini akan muncul di sini</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-100">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Pelanggan</th>
-                      <th className="hidden px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 sm:table-cell">Waktu</th>
-                      <th className="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-600">Total</th>
-                      <th className="px-6 py-3.5 text-center text-xs font-semibold uppercase tracking-wider text-gray-600">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 bg-white">
-                    {recentTransactions.map((tx) => (
-                      <tr key={tx.id} className="transition-colors hover:bg-gray-50">
-                        {/* Avatar diperbarui */}
-                        <td className="whitespace-nowrap px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-cyan-100 to-cyan-200 text-sm font-semibold text-cyan-800">
-                              {(tx.namaPelanggan || 'U')[0].toUpperCase()}
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">{tx.namaPelanggan || '-'}</p>
-                              <p className="text-xs text-gray-500 sm:hidden">{formatTime(tx.tanggal)}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="hidden whitespace-nowrap px-6 py-4 text-sm text-gray-600 sm:table-cell">
-                          {formatTime(tx.tanggal)}
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-right">
-                          <span className="text-sm font-bold text-gray-900">{formatRupiah(tx.total)}</span>
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-center">
-                          {tx.isRefunded ? (
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 ring-1 ring-red-600/20">
-                              <span className="h-1.5 w-1.5 rounded-full bg-red-600"></span>
-                              Refund
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700 ring-1 ring-green-600/20">
-                              <span className="h-1.5 w-1.5 rounded-full bg-green-600"></span>
-                              Selesai
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Kolom Samping (Ringkasan) (Tema diperbarui) */}
-        <div className="lg:col-span-1 space-y-6">
-          
-          {/* Produk Terlaris */}
-          <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
-            <div className="border-b border-gray-100 px-6 py-4">
-              <h3 className="text-lg font-bold text-gray-900">Produk Terlaris (Hari Ini)</h3>
-            </div>
-            {topProducts.length === 0 ? (
-              <p className="px-6 py-10 text-center text-sm text-gray-500">Belum ada produk terjual hari ini.</p>
-            ) : (
-              <ul className="divide-y divide-gray-100">
-                {topProducts.map(([name, qty]) => (
-                  <li key={name} className="flex items-center justify-between px-6 py-4">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900 truncate max-w-48">{name}</p>
-                      <p className="text-sm text-gray-500">Terjual</p>
-                    </div>
-                    <span className="text-lg font-bold text-cyan-700">{qty}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          
-          {/* Metode Bayar */}
-          <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
-            <div className="border-b border-gray-100 px-6 py-4">
-              <h3 className="text-lg font-bold text-gray-900">Metode Bayar (Hari Ini)</h3>
-            </div>
-            {Object.keys(paymentSummary).length === 0 ? (
-              <p className="px-6 py-10 text-center text-sm text-gray-500">Belum ada pembayaran.</p>
-            ) : (
-              <ul className="divide-y divide-gray-100">
-                {Object.entries(paymentSummary).map(([method, total]) => (
-                  <li key={method} className="flex items-center justify-between px-6 py-4">
-                    <span className="text-sm font-medium text-gray-900 capitalize">{method.toLowerCase()}</span>
-                    <span className="text-sm font-bold text-gray-700">{formatRupiah(total)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          
-        </div>
-
-      </div> {/* Akhir grid 2 kolom */}
+    // Grid utama (2/3 kiri, 1/3 kanan)
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       
-      {/* --- BARU: Render Modal --- */}
+      {/* Kolom Kiri (Utama) */}
+      <div className="lg:col-span-2 space-y-6">
+        
+        {/* Welcome Card (Tema diperbarui) */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-700 via-cyan-800 to-cyan-900 p-8 text-white shadow-xl">
+           <div className="absolute right-0 top-0 h-64 w-64 translate-x-32 -translate-y-32 rounded-full bg-white opacity-10"></div>
+          <div className="absolute bottom-0 left-0 h-48 w-48 -translate-x-24 translate-y-24 rounded-full bg-white opacity-10"></div>
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-2xl"><MdDashboard /></span>
+              <span className="text-sm font-medium opacity-90">Selamat Datang Kembali</span>
+            </div>
+            <h2 className="text-3xl font-bold mb-2">
+              {user.displayName || 'Pengguna'}
+            </h2>
+            <p className="text-sm opacity-90">
+              {storeName} • {new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </p>
+          </div>
+        </div>
+
+        {/* Summary Cards (Grid 2x2) */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <SummaryCard title="Penjualan Hari Ini" value={formatRupiah(dailySales)} icon={<MdAttachMoney />} />
+          <SummaryCard title="Transaksi Hari Ini" value={dailyTxnCount.toString()} icon={<MdReceiptLong />} />
+          <SummaryCard title="Produk Terjual (Hari Ini)" value={dailyItemsSold.toString()} icon={<MdInventory2 />} />
+          <SummaryCard title="Penjualan Online (Hari Ini)" value={formatRupiah(dailyOnlineSales)} icon={<MdLanguage />} />
+        </div>
+
+        {/* --- Transaksi Terbaru (Tema diperbarui) --- */}
+        <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 overflow-hidden">
+          <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Transaksi Terbaru</h3>
+              <p className="text-sm text-gray-500 mt-0.5">5 transaksi terakhir hari ini</p>
+            </div>
+            {/* --- TOMBOL DIPERBARUI --- */}
+            <button 
+              onClick={() => setIsModalOpen(true)} // <-- BARU: Buka modal
+              className="rounded-lg bg-cyan-50 px-4 py-2 text-sm font-medium text-cyan-700 transition-colors hover:bg-cyan-100"
+            >
+              Lihat Semua
+            </button>
+          </div>
+
+          {/* Tabel Transaksi Terbaru (Tema & Ikon diperbarui) */}
+          {recentTransactions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <MdInbox className="h-16 w-16 text-gray-300" />
+              <p className="mt-4 text-sm font-medium text-gray-900">Belum ada transaksi</p>
+              <p className="mt-1 text-sm text-gray-500">Transaksi hari ini akan muncul di sini</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-100">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Pelanggan</th>
+                    <th className="hidden px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 sm:table-cell">Waktu</th>
+                    <th className="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-600">Total</th>
+                    <th className="px-6 py-3.5 text-center text-xs font-semibold uppercase tracking-wider text-gray-600">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 bg-white">
+                  {recentTransactions.map((tx) => (
+                    <tr key={tx.id} className="transition-colors hover:bg-gray-50">
+                      {/* Avatar diperbarui */}
+                      <td className="whitespace-nowrap px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-cyan-100 to-cyan-200 text-sm font-semibold text-cyan-800">
+                            {(tx.namaPelanggan || 'U')[0].toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{tx.namaPelanggan || '-'}</p>
+                            <p className="text-xs text-gray-500 sm:hidden">{formatTime(tx.tanggal)}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="hidden whitespace-nowrap px-6 py-4 text-sm text-gray-600 sm:table-cell">
+                        {formatTime(tx.tanggal)}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-right">
+                        <span className="text-sm font-bold text-gray-900">{formatRupiah(tx.total)}</span>
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-center">
+                        {tx.isRefunded ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 ring-1 ring-red-600/20">
+                            <span className="h-1.5 w-1.5 rounded-full bg-red-600"></span>
+                            Refund
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700 ring-1 ring-green-600/20">
+                            <span className="h-1.5 w-1.5 rounded-full bg-green-600"></span>
+                            Selesai
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+      </div> {/* Akhir Kolom Kiri */}
+
+      {/* Kolom Kanan (Samping) */}
+      <div className="lg:col-span-1 space-y-6">
+        
+        {/* Produk Terlaris */}
+        <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
+          <div className="border-b border-gray-100 px-6 py-4">
+            <h3 className="text-lg font-bold text-gray-900">Produk Terlaris (Hari Ini)</h3>
+          </div>
+          {topProducts.length === 0 ? (
+            <p className="px-6 py-10 text-center text-sm text-gray-500">Belum ada produk terjual hari ini.</p>
+          ) : (
+            <ul className="divide-y divide-gray-100">
+              {topProducts.map(([name, qty]) => (
+                <li key={name} className="flex items-center justify-between px-6 py-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 truncate max-w-48">{name}</p>
+                    <p className="text-sm text-gray-500">Terjual</p>
+                  </div>
+                  <span className="text-lg font-bold text-cyan-700">{qty}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        
+        {/* Metode Bayar */}
+        <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
+          <div className="border-b border-gray-100 px-6 py-4">
+            <h3 className="text-lg font-bold text-gray-900">Metode Bayar (Hari Ini)</h3>
+          </div>
+          {Object.keys(paymentSummary).length === 0 ? (
+            <p className="px-6 py-10 text-center text-sm text-gray-500">Belum ada pembayaran.</p>
+          ) : (
+            <ul className="divide-y divide-gray-100">
+              {Object.entries(paymentSummary).map(([method, total]) => (
+                <li key={method} className="flex items-center justify-between px-6 py-4">
+                  <span className="text-sm font-medium text-gray-900 capitalize">{method.toLowerCase()}</span>
+                  <span className="text-sm font-bold text-gray-700">{formatRupiah(total)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        
+      </div> {/* Akhir Kolom Kanan */}
+
+      {/* Modal dirender di sini. 
+        Karena posisinya 'fixed', tidak masalah diletakkan di dalam grid.
+      */}
       <AllTransactionsModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         transactions={allDailyTransactions}
       />
       
-    </div>
+    </div> // Akhir Grid Utama
   );
+  // --- PERUBAHAN TATA LETAK SELESAI ---
 }
 
 export default DashboardPageContent;
