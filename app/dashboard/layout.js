@@ -32,11 +32,12 @@ import {
   MdPeople,
   MdCardMembership,
   MdPayment,
-  MdStorefront 
+  MdStorefront,
+  MdTag // <-- TAMBAHAN BARU
 } from 'react-icons/md';
 // --- Akhir Ikon ---
 
-// --- Struktur Menu (Tidak berubah) ---
+// --- Struktur Menu (Diperbarui) ---
 const menuGroups = [
   {
     title: 'Operasional',
@@ -51,6 +52,9 @@ const menuGroups = [
           { name: 'Ringkasan', path: '/dashboard/laporan/ringkasan', icon: <MdTrendingUp className="w-6 h-6" /> },
           { name: 'Per Produk', path: '/dashboard/laporan/produk', icon: <MdInventory2 className="w-6 h-6" /> },
           { name: 'Per Kategori', path: '/dashboard/laporan/kategori', icon: <MdCategory className="w-6 h-6" /> },
+          // --- INI YANG BARU DITAMBAHKAN ---
+          { name: 'Per Tipe Produk', path: '/dashboard/laporan/tipe-produk', icon: <MdTag className="w-6 h-6" /> },
+          // --- AKHIR TAMBAHAN ---
           { name: 'Laporan Kasir', path: '/dashboard/laporan/kasir', icon: <MdPointOfSale className="w-6 h-6" /> },
         ]
       }
@@ -75,6 +79,7 @@ const menuGroups = [
     ]
   }
 ];
+// --- Akhir Struktur Menu ---
 
 export default function DashboardLayout({ children }) {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
@@ -201,6 +206,17 @@ export default function DashboardLayout({ children }) {
     } else {
       setIsSidebarExpanded(!isSidebarExpanded);
     }
+  };
+  
+  // Helper format rupiah (dibutuhkan untuk notifikasi)
+  const formatRupiah = (value) => {
+    if (value == null || isNaN(value)) return 'Rp 0';
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(value);
   };
 
   return (

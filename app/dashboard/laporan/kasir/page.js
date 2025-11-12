@@ -265,10 +265,13 @@ export default function LaporanKasirPage() {
   
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-gray-900">Laporan Per Sesi Kasir</h1>
 
-      {/* --- Filter Bar (Tema diperbarui) --- */}
-      <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
+      {/* Filter Tanggal */}
+      <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100 mb-6">
+
+        <div className="border-b border-gray-100 pb-6 mb-6">
+          <h1 className="text-3xl font-bold text-gray-900">Laporan per Sesi Kasir</h1>
+        </div>
         <form onSubmit={handleFilterApply} className="grid grid-cols-1 gap-4 md:grid-cols-3 md:items-end">
           <div>
             <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">Dari Tanggal</label>

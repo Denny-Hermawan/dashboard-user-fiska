@@ -65,7 +65,7 @@ const SummaryCard = ({ title, value, icon, className = '' }) => (
 );
 
 
-// --- [BARU] Komponen Modal Detail Produk ---
+// --- Komponen Modal Detail Produk ---
 const ProductDetailModal = ({ isOpen, onClose, categoryName, products }) => {
   if (!isOpen) return null;
 
@@ -291,10 +291,15 @@ export default function LaporanKategoriPage() {
   
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-gray-900">Laporan Penjualan per Kategori</h1>
-
-      {/* --- Filter Bar (Tidak berubah) --- */}
+      {/* --- [PERUBAHAN] Judul dan Filter digabung dalam satu Card --- */}
       <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
+        
+        {/* Judul Halaman */}
+        <div className="border-b border-gray-100 pb-6 mb-6">
+          <h1 className="text-3xl font-bold text-gray-900">Laporan Penjualan per Kategori</h1>
+        </div>
+        
+        {/* Form Filter */}
         <form onSubmit={handleFilterApply} className="grid grid-cols-1 gap-4 md:grid-cols-3 md:items-end">
           <div>
             <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">Dari Tanggal</label>
@@ -320,6 +325,8 @@ export default function LaporanKategoriPage() {
           </button>
         </form>
       </div>
+      {/* --- [AKHIR PERUBAHAN] --- */}
+
 
       {/* --- KPI Cards (Tidak berubah) --- */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
