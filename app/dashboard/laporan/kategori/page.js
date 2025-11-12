@@ -43,22 +43,43 @@ const LoadingSpinner = ({ message = "Memuat data..." }) => (
 );
 
 const EmptyState = () => (
-  <div className="flex flex-col items-center justify-center py-16">
-    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-3xl">
-      <MdInbox className="h-12 w-12 text-gray-400" />
+  <div className="flex flex-col items-center justify-center py-20">
+    <div className="relative">
+      {/* Animated background circles */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="h-32 w-32 animate-pulse rounded-full bg-cyan-100 opacity-20"></div>
+      </div>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="h-24 w-24 animate-pulse rounded-full bg-cyan-200 opacity-30 animation-delay-150"></div>
+      </div>
+      {/* Icon */}
+      <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-cyan-50 to-cyan-100">
+        <MdInbox className="h-10 w-10 text-cyan-400" />
+      </div>
     </div>
-    <p className="mt-4 text-sm font-medium text-gray-900">Tidak ada data</p>
-    <p className="mt-1 text-sm text-gray-500">Tidak ada penjualan pada rentang tanggal ini.</p>
+    <h3 className="mt-6 text-lg font-semibold text-gray-900">Belum Ada Data</h3>
+    <p className="mt-2 max-w-sm text-center text-sm text-gray-500">
+      Tidak ada data penjualan pada rentang tanggal ini. Coba ubah filter tanggal.
+    </p>
   </div>
 );
 
 const SummaryCard = ({ title, value, icon, className = '' }) => (
   <div className={`rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100 ${className}`}>
-    <div className="flex items-center gap-4">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-cyan-50 text-2xl text-cyan-700">{icon}</div>
-      <div>
-        <p className="text-sm font-medium text-gray-500">{title}</p>
-        <p className="mt-1 text-2xl font-bold text-gray-900 truncate">{value}</p>
+    <div className="flex items-start justify-between">
+      <div className="flex items-center gap-4">
+        
+        {/* --- INI BAGIAN YANG DIUBAH --- */}
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-cyan-600 shadow-lg shadow-cyan-500/30">
+          {icon}
+        </div>
+        {/* --- AKHIR PERUBAHAN --- */}
+
+        <div>
+          <p className="text-sm font-medium text-gray-500">{title}</p>
+          {/* --- PERBAIKAN: Ukuran font disamakan --- */}
+          <p className="mt-1 text-3xl font-bold text-gray-900 truncate">{value}</p>
+        </div>
       </div>
     </div>
   </div>
@@ -107,6 +128,7 @@ const ProductDetailModal = ({ isOpen, onClose, categoryName, products }) => {
                       <p className="text-sm font-medium text-gray-900">{prod.name}</p>
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-bold text-cyan-700">{prod.qty}</td>
+                    {/* [INFO] Angka ini sekarang sudah dipotong diskon */}
                     <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium text-gray-700">{formatRupiah(prod.sales)}</td>
                   </tr>
                 ))}
@@ -145,13 +167,11 @@ export default function LaporanKategoriPage() {
   const [reportData, setReportData] = useState([]); // Data tabel
   const [kpi, setKpi] = useState({ totalSales: 0, totalTxn: 0, totalItems: 0 });
 
-  // --- [BARU] State untuk Modal ---
+  // State untuk Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalData, setModalData] = useState([]); // Berisi daftar produk untuk modal
   const [selectedCategoryName, setSelectedCategoryName] = useState('');
-  // --- [AKHIR] State untuk Modal ---
-
-
+  
   // 1. Cek Autentikasi
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -197,7 +217,7 @@ export default function LaporanKategoriPage() {
       
       const txSnap = await getDocs(txQuery);
 
-      // --- [DIPERBARUI] Langkah C: Proses Data (Agregasi per Kategori + Rincian Produk) ---
+      // --- [PERUBAHAN] Langkah C: Proses Data (Agregasi + Distribusi Diskon) ---
       const categorySummary = new Map(); 
       let grandTotalSales = 0;
       let grandTotalTxn = 0;
@@ -205,16 +225,33 @@ export default function LaporanKategoriPage() {
 
       txSnap.docs.forEach(txDoc => {
         const txData = txDoc.data();
-        grandTotalSales += txData.total || 0;
+        const txDiscount = txData.diskon || 0;
+        const items = txData.items || [];
+
+        grandTotalSales += txData.total || 0; // Omzet NET untuk KPI
         grandTotalTxn++;
 
-        (txData.items || []).forEach(item => {
+        // Pass 1: Hitung subtotal kotor (sebelum diskon)
+        let txSubtotal = 0;
+        items.forEach(item => {
+          if (!item.isComplimentary) {
+            txSubtotal += (item.produkHarga || 0) * (item.jumlah || 0);
+          }
+        });
+        
+        // Pass 2: Proses item, distribusikan diskon, dan agregasi
+        items.forEach(item => {
           const produkId = item.produkIdString;
           if (!produkId || item.isComplimentary) return; 
 
           const kategori = productCategoryMap.get(produkId) || 'Tanpa Kategori';
           const qty = item.jumlah || 0;
-          const sales = (item.produkHarga || 0) * qty; 
+          const grossSales = (item.produkHarga || 0) * qty; 
+
+          // [LOGIKA BARU] Distribusikan diskon
+          const itemProportion = (txSubtotal > 0) ? (grossSales / txSubtotal) : 0;
+          const itemDiscount = txDiscount * itemProportion;
+          const netSales = grossSales - itemDiscount; // Omzet bersih item
           
           grandTotalItems += qty;
           
@@ -223,13 +260,13 @@ export default function LaporanKategoriPage() {
             name: kategori,
             qty: 0,
             sales: 0,
-            products: new Map() // <-- [BARU] Siapkan map untuk rincian produk
+            products: new Map() // Siapkan map untuk rincian produk
           };
           
           summary.qty += qty;
-          summary.sales += sales;
+          summary.sales += netSales; // <-- [PERUBAHAN] Tambah Net Sales
           
-          // --- [BARU] Tambahkan data ke rincian produk ---
+          // Tambahkan data ke rincian produk (untuk modal)
           const productName = item.baseProdukNama || item.produkNama || 'Produk Dihapus';
           const productSummary = summary.products.get(produkId) || {
             name: productName,
@@ -237,9 +274,8 @@ export default function LaporanKategoriPage() {
             sales: 0,
           };
           productSummary.qty += qty;
-          productSummary.sales += sales;
+          productSummary.sales += netSales; // <-- [PERUBAHAN] Tambah Net Sales
           summary.products.set(produkId, productSummary);
-          // --- [AKHIR BARU] ---
           
           categorySummary.set(kategori, summary);
         });
@@ -291,7 +327,7 @@ export default function LaporanKategoriPage() {
   
   return (
     <div className="space-y-6">
-      {/* --- [PERUBAHAN] Judul dan Filter digabung dalam satu Card --- */}
+      {/* --- Filter Card --- */}
       <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
         
         {/* Judul Halaman */}
@@ -325,17 +361,22 @@ export default function LaporanKategoriPage() {
           </button>
         </form>
       </div>
-      {/* --- [AKHIR PERUBAHAN] --- */}
+      {/* --- Akhir Filter Card --- */}
 
 
-      {/* --- KPI Cards (Tidak berubah) --- */}
+      {/* --- KPI Cards --- */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <SummaryCard title="Total Omzet (Penjualan)" value={formatRupiah(kpi.totalSales)} icon={<MdAttachMoney />} />
-        <SummaryCard title="Total Transaksi" value={kpi.totalTxn.toString()} icon={<MdReceiptLong />} />
-        <SummaryCard title="Total Item Terjual" value={kpi.totalItems.toString()} icon={<MdInventory2 />} />
+        {/* [INFO] Kartu KPI ini menampilkan Omzet Bersih (setelah diskon) */}
+        
+        {/* --- PERUBAHAN IKON DI SINI --- */}
+        <SummaryCard title="Total Omzet (Penjualan)" value={formatRupiah(kpi.totalSales)} icon={<MdAttachMoney className="w-7 h-7 text-white" />} />
+        <SummaryCard title="Total Transaksi" value={kpi.totalTxn.toString()} icon={<MdReceiptLong className="w-7 h-7 text-white" />} />
+        <SummaryCard title="Total Item Terjual" value={kpi.totalItems.toString()} icon={<MdInventory2 className="w-7 h-7 text-white" />} />
+        {/* --- AKHIR PERUBAHAN --- */}
+
       </div>
 
-      {/* --- Tabel Hasil Laporan (DIPERBARUI) --- */}
+      {/* --- Tabel Hasil Laporan --- */}
       <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 overflow-hidden">
         {isLoading ? (
           <LoadingSpinner />
@@ -348,6 +389,7 @@ export default function LaporanKategoriPage() {
                 <tr>
                   <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Nama Kategori</th>
                   <th className="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-600">Terjual (Qty)</th>
+                  {/* [INFO] Kolom ini sekarang menampilkan Omzet Bersih (setelah diskon) */}
                   <th className="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-600">Total Omzet</th>
                   <th className="relative px-6 py-3.5">
                     <span className="sr-only">Detail</span>
@@ -356,11 +398,10 @@ export default function LaporanKategoriPage() {
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
                 {reportData.map((item, index) => (
-                  // --- [BARU] Baris tabel dibuat klikabel ---
                   <tr 
                     key={item.name + index} 
-                    onClick={() => handleCategoryClick(item)} // <-- Aksi klik
-                    className="transition-colors hover:bg-gray-50 cursor-pointer" // <-- Tambah cursor
+                    onClick={() => handleCategoryClick(item)} // Aksi klik
+                    className="transition-colors hover:bg-gray-50 cursor-pointer" // Tambah cursor
                   >
                     <td className="whitespace-nowrap px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -372,7 +413,6 @@ export default function LaporanKategoriPage() {
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-bold text-cyan-700">{item.qty}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium text-gray-700">{formatRupiah(item.sales)}</td>
-                    {/* --- [BARU] Ikon panah untuk indikator --- */}
                     <td className="whitespace-nowrap px-6 py-4 text-right text-gray-400">
                       <MdChevronRight className="w-5 h-5" />
                     </td>
@@ -384,7 +424,7 @@ export default function LaporanKategoriPage() {
         )}
       </div>
 
-      {/* --- [BARU] Render Modal --- */}
+      {/* --- Render Modal --- */}
       <ProductDetailModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

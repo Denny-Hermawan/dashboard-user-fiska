@@ -19,7 +19,9 @@ import {
 import {
   MdInbox,
   MdClose,
-  MdChevronRight
+  MdChevronRight,
+  MdAttachMoney, // <-- TAMBAHKAN
+  MdInventory2 // <-- TAMBAHKAN
 } from 'react-icons/md';
 
 // Helper Functions
@@ -45,12 +47,50 @@ const formatCurrency = (value) => {
 };
 
 
-// Komponen Loading Spinner
 const LoadingSpinner = ({ message = "Memuat data..." }) => (
   <div className="flex h-64 items-center justify-center">
     <div className="flex items-center gap-3">
       <div className="h-8 w-8 animate-spin rounded-full border-4 border-cyan-200 border-t-cyan-600"></div>
       <span className="text-sm font-medium text-gray-600">{message}</span>
+    </div>
+  </div>
+);
+
+const EmptyState = () => (
+  <div className="flex flex-col items-center justify-center py-20">
+    <div className="relative">
+      {/* Animated background circles */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="h-32 w-32 animate-pulse rounded-full bg-cyan-100 opacity-20"></div>
+      </div>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="h-24 w-24 animate-pulse rounded-full bg-cyan-200 opacity-30 animation-delay-150"></div>
+      </div>
+      {/* Icon */}
+      <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-cyan-50 to-cyan-100">
+        <MdInbox className="h-10 w-10 text-cyan-400" />
+      </div>
+    </div>
+    <h3 className="mt-6 text-lg font-semibold text-gray-900">Belum Ada Data</h3>
+    <p className="mt-2 max-w-sm text-center text-sm text-gray-500">
+      Tidak ada data penjualan pada rentang tanggal ini. Coba ubah filter tanggal.
+    </p>
+  </div>
+);
+
+// Komponen SummaryCard (BARU)
+const SummaryCard = ({ title, value, icon, className = '' }) => (
+  <div className={`rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100 ${className}`}>
+    <div className="flex items-start justify-between">
+      <div className="flex items-center gap-4">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-cyan-600 shadow-lg shadow-cyan-500/30">
+          {icon}
+        </div>
+        <div>
+          <p className="text-sm font-medium text-gray-500">{title}</p>
+          <p className="mt-1 text-3xl font-bold text-gray-900 truncate">{value}</p>
+        </div>
+      </div>
     </div>
   </div>
 );
@@ -97,6 +137,7 @@ const ProductDetailModal = ({ isOpen, onClose, typeName, products }) => {
                       <p className="text-sm font-medium text-gray-900">{prod.name}</p>
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-bold text-cyan-700">{prod.qty}</td>
+                    {/* [INFO] Angka ini sekarang sudah dipotong diskon */}
                     <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium text-gray-700">{formatCurrency(prod.sales)}</td>
                   </tr>
                 ))}
@@ -155,7 +196,7 @@ export default function LaporanTipeProduk() {
     setEndDate(today);
   }, []);
 
-  // fetchData dipindahkan ke atas
+  // --- [PERUBAHAN] Logika fetchData untuk Distribusi Diskon ---
   const fetchData = useCallback(async () => {
     if (!user || !startDate || !endDate) return;
     setLoading(true);
@@ -175,30 +216,50 @@ export default function LaporanTipeProduk() {
 
       const transactionsRef = collection(db, 'users', user.uid, 'transactions');
       
-      // --- [PERBAIKAN] Query ini disamakan dengan Laporan Produk/Kategori ---
       const q = query(transactionsRef, 
         where('tanggal', '>=', Timestamp.fromDate(dateStart)),
         where('tanggal', '<=', Timestamp.fromDate(dateEnd)),
         where('isRefunded', '==', false),
-        orderBy('tanggal', 'desc') // <-- DITAMBAHKAN AGAR SAMA
+        orderBy('tanggal', 'desc')
       );
-      // --- [AKHIR PERBAIKAN] ---
       
       const querySnapshot = await getDocs(q);
       const salesData = {};
-      let totalSales = 0;
-      let totalQty = 0;
+      let totalSales = 0; // Total Omzet NET (dari tx.total)
+      let totalQty = 0; // Total Qty (non-komplimen)
 
       querySnapshot.forEach(doc => {
         const transaction = doc.data();
-        transaction.items.forEach(item => {
+        const txDiscount = transaction.diskon || 0;
+        const items = transaction.items || [];
+
+        totalSales += transaction.total || 0; // KPI: Ambil total NET
+        
+        // Pass 1: Hitung subtotal kotor (sebelum diskon)
+        let txSubtotal = 0;
+        items.forEach(item => {
+          if (!item.isComplimentary) {
+            txSubtotal += (item.produkHarga || 0) * (item.jumlah || 0);
+          }
+        });
+        
+        // Pass 2: Proses item, distribusikan diskon, dan agregasi
+        items.forEach(item => {
           if (!item.isComplimentary) { 
             const product = productMap[item.produkIdString];
             
             const productTypeInt = product ? product.productType : -1; 
             const tipeProduk = getProductTypeName(productTypeInt);
 
-            const itemSubtotal = (item.produkHarga ?? 0) * item.jumlah;
+            const qty = item.jumlah || 0;
+            const grossSales = (item.produkHarga ?? 0) * qty;
+
+            totalQty += qty; // KPI: Hitung total item terjual
+
+            // Distribusikan diskon
+            const itemProportion = (txSubtotal > 0) ? (grossSales / txSubtotal) : 0;
+            const itemDiscount = txDiscount * itemProportion;
+            const netSales = grossSales - itemDiscount; // Omzet bersih item
 
             if (!salesData[tipeProduk]) {
               salesData[tipeProduk] = { 
@@ -207,8 +268,8 @@ export default function LaporanTipeProduk() {
                 products: new Map() 
               };
             }
-            salesData[tipeProduk].total += itemSubtotal;
-            salesData[tipeProduk].quantity += item.jumlah;
+            salesData[tipeProduk].total += netSales; // [FIXED]
+            salesData[tipeProduk].quantity += qty;
 
             const productName = item.baseProdukNama || item.produkNama || 'Produk Dihapus';
             const productSummary = salesData[tipeProduk].products.get(item.produkIdString) || {
@@ -216,8 +277,8 @@ export default function LaporanTipeProduk() {
               qty: 0,
               sales: 0,
             };
-            productSummary.qty += item.jumlah;
-            productSummary.sales += itemSubtotal;
+            productSummary.qty += qty;
+            productSummary.sales += netSales; // [FIXED]
             salesData[tipeProduk].products.set(item.produkIdString, productSummary);
           }
         });
@@ -232,8 +293,9 @@ export default function LaporanTipeProduk() {
       
       setTipeProdukSales(sortedTipeProduk);
 
-      setTotalPenjualan(sortedTipeProduk.reduce((acc, curr) => acc + curr.total, 0));
-      setTotalKuantitas(sortedTipeProduk.reduce((acc, curr) => acc + curr.quantity, 0));
+      // [FIXED] Set KPI menggunakan angka yang sudah dihitung
+      setTotalPenjualan(totalSales);
+      setTotalKuantitas(totalQty);
 
     } catch (error)
     {
@@ -246,6 +308,7 @@ export default function LaporanTipeProduk() {
       setLoading(false);
     }
   }, [user, startDate, endDate]); 
+  // --- AKHIR PERUBAHAN fetchData ---
 
   useEffect(() => {
     if (user && startDate) {
@@ -311,33 +374,31 @@ export default function LaporanTipeProduk() {
       </div>
 
 
-      {/* Ringkasan Total */}
+      {/* Ringkasan Total (BARU) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div className="bg-white p-6 rounded-2xl shadow-sm ring-1 ring-gray-100 flex items-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-50 text-2xl text-green-700 mr-4">
-            <HiOutlineCurrencyDollar />
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">Total Penjualan</p>
-            <p className="text-2xl font-bold text-gray-800">{formatCurrency(totalPenjualan)}</p>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm ring-1 ring-gray-100 flex items-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-2xl text-blue-700 mr-4">
-            <HiOutlineShoppingCart />
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">Total Kuantitas Terjual</p>
-            <p className="text-2xl font-bold text-gray-800">{totalKuantitas} pcs</p>
-          </div>
-        </div>
+        <SummaryCard 
+          title="Total Penjualan" 
+          value={formatCurrency(totalPenjualan)} 
+          icon={<MdAttachMoney className="w-7 h-7 text-white" />} 
+        />
+        <SummaryCard 
+          title="Total Kuantitas Terjual" 
+          value={`${totalKuantitas} pcs`} 
+          icon={<MdInventory2 className="w-7 h-7 text-white" />} 
+        />
       </div>
 
       {/* Tabel Data */}
-      <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-100 overflow-hidden">
-        {loading ? (
+      {loading ? (
+        <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
           <LoadingSpinner />
-        ) : (
+        </div>
+      ) : tipeProdukSales.length === 0 ? (
+        <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
+          <EmptyState />
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-100">
               <thead className="bg-gray-50">
@@ -357,39 +418,34 @@ export default function LaporanTipeProduk() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
-                {tipeProdukSales.length > 0 ? (
-                  tipeProdukSales.map((item, index) => (
-                    <tr 
-                      key={index} 
-                      onClick={() => handleTypeClick(item)} 
-                      className="hover:bg-gray-50 cursor-pointer" 
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{item.name}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <div className="text-sm text-gray-700">{item.quantity} pcs</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <div className="text-sm text-gray-700">{formatCurrency(item.total)}</div>
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-right text-gray-400">
-                        <MdChevronRight className="w-5 h-5" />
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="4" className="px-6 py-4 text-center text-gray-500">
-                      Tidak ada data penjualan untuk rentang tanggal ini.
+                {/* [CATATAN]: Logika "tipeProdukSales.length > 0" 
+                  dipindahkan ke luar untuk menangani EmptyState.
+                */}
+                {tipeProdukSales.map((item, index) => (
+                  <tr 
+                    key={index} 
+                    onClick={() => handleTypeClick(item)} 
+                    className="hover:bg-gray-50 cursor-pointer" 
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{item.name}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <div className="text-sm text-gray-700">{item.quantity} pcs</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <div className="text-sm text-gray-700">{formatCurrency(item.total)}</div>
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-right text-gray-400">
+                      <MdChevronRight className="w-5 h-5" />
                     </td>
                   </tr>
-                )}
+                ))}
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
       
       {/* Render Modal */}
       <ProductDetailModal

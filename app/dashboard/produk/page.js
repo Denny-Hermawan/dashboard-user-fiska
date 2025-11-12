@@ -6,37 +6,21 @@ import { collection, onSnapshot, doc, deleteDoc, query, orderBy, setDoc } from "
 import { auth, db } from "@/lib/firebaseConfig";
 import { onAuthStateChanged } from "firebase/auth";
 import ProductModal from '@/components/ProductModal'; 
+// --- BARU: Impor toast ---
+import { toast } from "sonner";
 
-// ... (Ikon, helper, dan ProductModal tidak berubah) ...
+// --- PERUBAHAN: Ikon menggunakan Material Design ---
+import {
+  MdInventory2,
+  MdEdit,
+  MdDelete,
+  MdAdd,
+  MdWarning,
+  MdSearch,
+  MdClear
+} from 'react-icons/md';
+// --- AKHIR PERUBAHAN IKON ---
 
-// --- Kumpulan Ikon ---
-const ProductIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-  </svg>
-);
-const EditIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-  </svg>
-);
-const DeleteIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-  </svg>
-);
-const AddIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-  </svg>
-);
-// Ikon untuk modal hapus
-const WarningIcon = () => (
-  <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-  </svg>
-);
-// --- Akhir Kumpulan Ikon ---
 
 // --- Helper Functions (Tidak Berubah) ---
 const formatRupiah = (value) => {
@@ -59,7 +43,7 @@ const getProductTypeDisplayName = (typeIndex) => {
 };
 // --- Akhir Helper Functions ---
 
-// --- BARU: Komponen Modal Konfirmasi Hapus ---
+// --- Komponen Modal Konfirmasi Hapus (Ikon diperbarui) ---
 const ConfirmDeleteModal = ({ isOpen, onClose, onConfirm, productName, isDeleting }) => {
   if (!isOpen) return null;
 
@@ -68,7 +52,8 @@ const ConfirmDeleteModal = ({ isOpen, onClose, onConfirm, productName, isDeletin
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
         <div className="flex items-start gap-4">
           <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100">
-            <WarningIcon />
+            {/* --- PERUBAHAN IKON --- */}
+            <MdWarning className="w-6 h-6 text-red-600" />
           </div>
           <div className="flex-1">
             <h3 className="mb-2 text-lg font-bold text-gray-900">Hapus Produk</h3>
@@ -111,10 +96,13 @@ export default function ProdukPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   
-  // --- BARU: State untuk modal hapus ---
+  // State untuk modal hapus
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // --- BARU: State untuk search ---
+  const [searchQuery, setSearchQuery] = useState('');
 
   // ... (useEffect untuk Auth, Products, dan Costs tidak berubah) ...
   useEffect(() => {
@@ -181,64 +169,90 @@ export default function ProdukPage() {
     setSelectedProduct(null);
   };
 
-  // --- BARU: Fungsi untuk Modal Hapus ---
-  
-  // 1. Panggil ini saat ikon sampah diklik
+  // --- Fungsi untuk Modal Hapus (Tidak Berubah) ---
   const handleDeleteClick = (product) => {
     setProductToDelete(product);
     setIsDeleteModalOpen(true);
   };
-
-  // 2. Panggil ini saat modal ditutup (Batal)
   const handleCloseDeleteModal = () => {
     setIsDeleteModalOpen(false);
     setProductToDelete(null);
   };
-
-  // 3. Panggil ini saat tombol "Ya, Hapus" diklik
   const handleConfirmDelete = async () => {
     if (!user || !productToDelete) return;
-    
-    setIsDeleting(true); // Mulai loading hapus
-    
+    setIsDeleting(true); 
     try {
       const productId = productToDelete.id;
-      // Hapus dari koleksi utama
       const productRef = doc(db, "users", user.uid, "products", productId);
       await deleteDoc(productRef);
-      
-      // Hapus dari koleksi costing
       const costRef = doc(db, "users", user.uid, "product_costs", productId);
       await deleteDoc(costRef);
-      
+      // --- BARU: Gunakan toast notifikasi ---
+      toast.success(`Produk "${productToDelete.name}" berhasil dihapus.`);
     } catch (error) {
       console.error("Error deleting product:", error);
-      alert("Gagal menghapus produk.");
+      // --- BARU: Gunakan toast notifikasi ---
+      toast.error("Gagal menghapus produk.");
     } finally {
-      setIsDeleting(false); // Selesai loading
-      handleCloseDeleteModal(); // Tutup modal
+      setIsDeleting(false); 
+      handleCloseDeleteModal(); 
     }
   };
   // --- AKHIR: Fungsi Modal Hapus ---
 
+  // --- BARU: Filter list produk berdasarkan search query (Nama atau Kategori) ---
+  const filteredProducts = mergedProducts.filter(product =>
+    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    product.kategori.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <h2 className="text-3xl font-bold text-gray-900">Kelola Produk</h2>
         <button
           onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:bg-indigo-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+          // --- PERUBAHAN TEMA: dari indigo ke cyan ---
+          className="flex items-center justify-center gap-2 rounded-xl bg-cyan-700 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:bg-cyan-800 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2"
         >
-          <AddIcon />
+          {/* --- PERUBAHAN IKON --- */}
+          <MdAdd className="w-5 h-5" />
           <span>Tambah Produk</span>
         </button>
       </div>
+
+      {/* --- BARU: Search Bar --- */}
+      <div className="relative">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Cari nama produk atau kategori..."
+          className="w-full rounded-lg border border-gray-300 px-4 py-2.5 pl-10 text-gray-900 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-200"
+        />
+        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+          <MdSearch className="w-5 h-5 text-gray-400" />
+        </span>
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
+            className="absolute inset-y-0 right-0 flex items-center pr-3"
+          >
+            <MdClear className="w-5 h-5 text-gray-400 hover:text-gray-600" />
+          </button>
+        )}
+      </div>
+      {/* --- AKHIR SEARCH BAR --- */}
+
 
       <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 overflow-hidden">
         {loading ? (
           <p className="p-6 text-center">Memuat produk...</p>
         ) : mergedProducts.length === 0 ? (
           <p className="p-6 text-center text-gray-500">Belum ada produk. Silakan tambahkan.</p>
+        // --- BARU: Kondisi jika search tidak ditemukan ---
+        ) : filteredProducts.length === 0 ? (
+           <p className="p-6 text-center text-gray-500">Tidak ada produk yang cocok dengan "{searchQuery}".</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-100">
@@ -253,12 +267,15 @@ export default function ProdukPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
-                {mergedProducts.map((prod) => (
+                {/* --- PERUBAHAN: Iterasi menggunakan filteredProducts --- */}
+                {filteredProducts.map((prod) => (
                   <tr key={prod.id} className="transition-colors hover:bg-gray-50">
                     <td className="whitespace-nowrap px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-700">
-                          <ProductIcon />
+                        {/* --- PERUBAHAN TEMA: dari indigo ke cyan --- */}
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-100 text-cyan-800">
+                          {/* --- PERUBAHAN IKON --- */}
+                          <MdInventory2 className="w-5 h-5" />
                         </div>
                         <p className="text-sm font-medium text-gray-900">{prod.name}</p>
                       </div>
@@ -270,18 +287,20 @@ export default function ProdukPage() {
                     <td className="whitespace-nowrap px-6 py-4 text-right">
                       <button
                         onClick={() => handleOpenModal(prod)}
-                        className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-indigo-100 hover:text-indigo-700"
+                        // --- PERUBAHAN TEMA: dari indigo ke cyan ---
+                        className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-cyan-100 hover:text-cyan-800"
                         title="Edit"
                       >
-                        <EditIcon />
+                        {/* --- PERUBAHAN IKON --- */}
+                        <MdEdit className="w-5 h-5" />
                       </button>
                       <button
-                        // --- PERBARUI: Panggil handleDeleteClick ---
                         onClick={() => handleDeleteClick(prod)}
                         className="ml-2 rounded-lg p-2 text-gray-500 transition-colors hover:bg-red-100 hover:text-red-700"
                         title="Hapus"
                       >
-                        <DeleteIcon />
+                        {/* --- PERUBAHAN IKON --- */}
+                        <MdDelete className="w-5 h-5" />
                       </button>
                     </td>
                   </tr>
@@ -302,7 +321,7 @@ export default function ProdukPage() {
          />
       )}
 
-      {/* --- BARU: Render Modal Konfirmasi Hapus --- */}
+      {/* Render Modal Konfirmasi Hapus (Tidak berubah) */}
       <ConfirmDeleteModal
         isOpen={isDeleteModalOpen}
         onClose={handleCloseDeleteModal}

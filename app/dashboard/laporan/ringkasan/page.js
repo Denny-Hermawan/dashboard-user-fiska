@@ -56,12 +56,24 @@ const LoadingSpinner = ({ message = "Memuat data..." }) => (
 );
 
 const EmptyState = () => (
-  <div className="flex flex-col items-center justify-center py-16">
-    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-3xl">
-      <MdInbox className="h-12 w-12 text-gray-400" />
+  <div className="flex flex-col items-center justify-center py-20">
+    <div className="relative">
+      {/* Animated background circles */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="h-32 w-32 animate-pulse rounded-full bg-cyan-100 opacity-20"></div>
+      </div>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="h-24 w-24 animate-pulse rounded-full bg-cyan-200 opacity-30 animation-delay-150"></div>
+      </div>
+      {/* Icon */}
+      <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-cyan-50 to-cyan-100">
+        <MdInbox className="h-10 w-10 text-cyan-400" />
+      </div>
     </div>
-    <p className="mt-4 text-sm font-medium text-gray-900">Tidak ada data</p>
-    <p className="mt-1 text-sm text-gray-500">Tidak ada penjualan pada rentang tanggal ini.</p>
+    <h3 className="mt-6 text-lg font-semibold text-gray-900">Belum Ada Data</h3>
+    <p className="mt-2 max-w-sm text-center text-sm text-gray-500">
+      Tidak ada data penjualan pada rentang tanggal ini. Coba ubah filter tanggal.
+    </p>
   </div>
 );
 
@@ -81,7 +93,13 @@ const EnhancedSummaryCard = ({ title, value, subtitle, icon, className = '', onC
     >
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-50 to-cyan-100 text-2xl text-cyan-700 shadow-sm">{icon}</div>
+          
+          {/* --- INI BAGIAN YANG DIUBAH --- */}
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-cyan-600 shadow-lg shadow-cyan-500/30">
+            {icon}
+          </div>
+          {/* --- AKHIR PERUBAHAN --- */}
+
           <div>
             <p className="text-sm font-medium text-gray-500">{title}</p>
             <p className="mt-1 text-3xl font-bold text-gray-900">{value}</p>
@@ -417,9 +435,13 @@ export default function RingkasanPage() {
       </div>
 
       {isLoading ? (
-        <LoadingSpinner />
+        <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
+          <LoadingSpinner />
+        </div>
       ) : kpi.totalTxn === 0 ? (
-        <EmptyState />
+        <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
+          <EmptyState />
+        </div>
       ) : (
         <>
           {/* --- [PERUBAHAN] Key Metrics (menggunakan EnhancedSummaryCard) --- */}
@@ -428,25 +450,29 @@ export default function RingkasanPage() {
               title="Total Penjualan" 
               value={formatRupiah(kpi.totalSales)} 
               subtitle="Penjualan kotor (non-refund)"
-              icon={<MdAttachMoney />}
+              // --- IKON DIUBAH ---
+              icon={<MdAttachMoney className="w-7 h-7 text-white" />}
             />
             <EnhancedSummaryCard 
               title="Rata-rata/Transaksi" 
               value={formatRupiah(avgTransaction)} 
               subtitle="Rata-rata nilai per order"
-              icon={<MdReceiptLong />}
+              // --- IKON DIUBAH ---
+              icon={<MdReceiptLong className="w-7 h-7 text-white" />}
             />
             <EnhancedSummaryCard 
               title="Total Transaksi" 
               value={kpi.totalTxn.toString()} 
               subtitle="Total order selesai"
-              icon={<MdReceiptLong />}
+              // --- IKON DIUBAH ---
+              icon={<MdReceiptLong className="w-7 h-7 text-white" />}
             />
             <EnhancedSummaryCard 
               title="Item Terjual" 
               value={kpi.totalItems.toString()} 
               subtitle="Total item non-komplimen"
-              icon={<MdInventory2 />}
+              // --- IKON DIUBAH ---
+              icon={<MdInventory2 className="w-7 h-7 text-white" />}
             />
           </div>
           {/* --- [AKHIR PERUBAHAN] --- */}
