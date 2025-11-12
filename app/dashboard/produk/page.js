@@ -1,26 +1,44 @@
-// app/dashboard/laporan/produk/page.js
+// app/dashboard/produk/page.js
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { onAuthStateChanged } from "firebase/auth";
-import { collection, query, where, Timestamp, orderBy, getDocs } from "firebase/firestore";
+import React, { useState, useEffect } from 'react';
+import { collection, onSnapshot, doc, deleteDoc, query, orderBy, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebaseConfig";
-import { useRouter } from 'next/navigation';
+import { onAuthStateChanged } from "firebase/auth";
+import ProductModal from '@/components/ProductModal'; 
 
-// --- Ikon Baru (Material Design) ---
-import {
-  MdInbox,
-  MdAttachMoney,
-  MdInventory2,
-  MdReceiptLong,
-  MdClose, // <-- BARU: Untuk modal
-  MdChevronRight // <-- BARU: Untuk baris tabel
-} from 'react-icons/md';
-// --- Akhir Ikon ---
+// ... (Ikon, helper, dan ProductModal tidak berubah) ...
 
-// --- Helper Functions ---
-const formatDateToInput = (date) => date.toISOString().split('T')[0];
-const getToday = () => new Date();
+// --- Kumpulan Ikon ---
+const ProductIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+  </svg>
+);
+const EditIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+  </svg>
+);
+const DeleteIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  </svg>
+);
+const AddIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+  </svg>
+);
+// Ikon untuk modal hapus
+const WarningIcon = () => (
+  <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+  </svg>
+);
+// --- Akhir Kumpulan Ikon ---
+
+// --- Helper Functions (Tidak Berubah) ---
 const formatRupiah = (value) => {
   if (value == null || isNaN(value)) return 'Rp 0';
   return new Intl.NumberFormat('id-ID', {
@@ -31,335 +49,240 @@ const formatRupiah = (value) => {
   }).format(value);
 };
 
-// --- [BARU] Helper Format Waktu (dicopy dari laporan lain) ---
-const formatDateTime = (timestamp) => {
-  if (!timestamp || !timestamp.seconds) return '-';
-  const date = new Date(timestamp.seconds * 1000);
-  return date.toLocaleDateString('id-ID', {
-    day: '2-digit', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit'
-  });
+const getProductTypeDisplayName = (typeIndex) => {
+  switch (typeIndex) {
+    case 0: return 'Makanan';
+    case 1: return 'Minuman';
+    case 2: return 'Lainnya';
+    default: return 'Lainnya';
+  }
 };
+// --- Akhir Helper Functions ---
 
-
-// --- Helper Components ---
-const LoadingSpinner = ({ message = "Memuat data..." }) => (
-  <div className="flex h-64 items-center justify-center">
-    <div className="flex items-center gap-3">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-cyan-200 border-t-cyan-600"></div>
-      <span className="text-sm font-medium text-gray-600">{message}</span>
-    </div>
-  </div>
-);
-
-const EmptyState = () => (
-  <div className="flex flex-col items-center justify-center py-16">
-    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-3xl">
-      <MdInbox className="h-12 w-12 text-gray-400" />
-    </div>
-    <p className="mt-4 text-sm font-medium text-gray-900">Tidak ada data</p>
-    <p className="mt-1 text-sm text-gray-500">Tidak ada penjualan pada rentang tanggal ini.</p>
-  </div>
-);
-
-const SummaryCard = ({ title, value, icon, className = '' }) => (
-  <div className={`rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100 ${className}`}>
-    <div className="flex items-center gap-4">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-cyan-50 text-2xl text-cyan-700">{icon}</div>
-      <div>
-        <p className="text-sm font-medium text-gray-500">{title}</p>
-        <p className="mt-1 text-2xl font-bold text-gray-900 truncate">{value}</p>
-      </div>
-    </div>
-  </div>
-);
-
-
-// --- [BARU] Komponen Modal Rincian Transaksi ---
-const TransactionDetailModal = ({ isOpen, onClose, productName, transactions }) => {
+// --- BARU: Komponen Modal Konfirmasi Hapus ---
+const ConfirmDeleteModal = ({ isOpen, onClose, onConfirm, productName, isDeleting }) => {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-3xl rounded-2xl bg-white shadow-2xl max-h-[80vh] flex flex-col">
-        {/* Header Modal */}
-        <div className="flex items-center justify-between border-b border-gray-100 p-6">
-          <div>
-            <h3 className="text-lg font-bold text-gray-900">Rincian Transaksi - {productName}</h3>
-            <p className="text-sm text-gray-500 mt-0.5">Menampilkan semua transaksi yang berisi produk ini</p>
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100">
+            <WarningIcon />
           </div>
+          <div className="flex-1">
+            <h3 className="mb-2 text-lg font-bold text-gray-900">Hapus Produk</h3>
+            <p className="mb-6 text-sm text-gray-600">
+              Yakin ingin menghapus produk **"{productName}"**? Tindakan ini juga akan menghapus data costing-nya dan tidak dapat dibatalkan.
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
-            title="Tutup"
+            disabled={isDeleting}
+            className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
           >
-            <MdClose className="w-6 h-6" />
+            Batal
           </button>
-        </div>
-
-        {/* Konten Scrollable (Tabel) */}
-        <div className="overflow-y-auto">
-          {transactions.length === 0 ? (
-             <p className="p-10 text-center text-sm text-gray-500">Tidak ada rincian transaksi.</p>
-          ) : (
-            <table className="min-w-full divide-y divide-gray-100">
-              <thead className="bg-gray-50 sticky top-0">
-                <tr>
-                  <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">ID Transaksi</th>
-                  <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Pelanggan</th>
-                  <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Waktu</th>
-                  <th className="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-600">Qty</th>
-                  <th className="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-600">Omzet</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
-                {transactions.map((tx, index) => (
-                  <tr key={tx.id + index} className="transition-colors hover:bg-gray-50">
-                    <td className="whitespace-nowrap px-6 py-4 text-xs font-mono text-gray-500">{tx.id.substring(0, 8)}...</td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">{tx.customer}</td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-600">{formatDateTime(tx.time)}</td>
-                    <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-bold text-cyan-700">{tx.qty}</td>
-                    <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium text-gray-700">{formatRupiah(tx.sales)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-        
-        {/* Footer Modal */}
-        <div className="border-t border-gray-100 p-4 text-right">
-            <button
-              onClick={onClose}
-              className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
-            >
-              Tutup
-            </button>
+          <button
+            onClick={onConfirm}
+            disabled={isDeleting}
+            className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:bg-red-300"
+          >
+            {isDeleting ? 'Menghapus...' : 'Ya, Hapus'}
+          </button>
         </div>
       </div>
     </div>
   );
 };
-// --- [AKHIR] Komponen Modal ---
+// --- AKHIR: Komponen Modal Konfirmasi Hapus ---
 
 
-// --- Main Page Component ---
-export default function LaporanProdukPage() {
-  const router = useRouter();
+export default function ProdukPage() {
   const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // --- State untuk Laporan ---
-  const [startDate, setStartDate] = useState(formatDateToInput(getToday()));
-  const [endDate, setEndDate] = useState(formatDateToInput(getToday()));
+  const [products, setProducts] = useState([]);
+  const [productCosts, setProductCosts] = useState({});
+  const [mergedProducts, setMergedProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
   
-  const [reportData, setReportData] = useState([]); // Data tabel
-  const [kpi, setKpi] = useState({ totalSales: 0, totalTxn: 0, totalItems: 0 });
-
-  // --- [BARU] State untuk Modal ---
+  // State untuk modal edit/tambah
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalData, setModalData] = useState([]); // Berisi daftar transaksi
-  const [selectedProductName, setSelectedProductName] = useState('');
-  // --- [AKHIR] State untuk Modal ---
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  
+  // --- BARU: State untuk modal hapus ---
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  // 1. Cek Autentikasi
+  // ... (useEffect untuk Auth, Products, dan Costs tidak berubah) ...
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
       if (!currentUser) {
-        router.replace('/login');
-      } else {
-        setUser(currentUser);
+        setLoading(false);
+        setProducts([]);
+        setProductCosts({});
+        setMergedProducts([]);
       }
     });
-    return () => unsubscribe();
-  }, [router]);
+    return () => unsubscribeAuth();
+  }, []);
 
-  // 2. Fungsi Fetch Laporan
-  // --- [DIPERBARUI] untuk mengambil data rincian transaksi ---
-  const fetchReport = useCallback(async () => {
-    if (!user) return;
-    setIsLoading(true);
-    setReportData([]);
-    setKpi({ totalSales: 0, totalTxn: 0, totalItems: 0 });
-
-    try {
-      // Langkah A: Fetch Transaksi
-      const dateStart = new Date(startDate);
-      dateStart.setHours(0, 0, 0, 0);
-      const dateEnd = new Date(endDate);
-      dateEnd.setHours(23, 59, 59, 999);
-
-      const txQuery = query(
-        collection(db, "users", user.uid, "transactions"),
-        where('tanggal', '>=', Timestamp.fromDate(dateStart)),
-        where('tanggal', '<=', Timestamp.fromDate(dateEnd)),
-        where('isRefunded', '==', false),
-        orderBy('tanggal', 'desc')
-      );
-      
-      const txSnap = await getDocs(txQuery);
-
-      // --- [DIPERBARUI] Langkah C: Proses Data + Rincian Transaksi ---
-      const productSummary = new Map();
-      let grandTotalSales = 0;
-      let grandTotalTxn = 0;
-      let grandTotalItems = 0;
-
-      txSnap.docs.forEach(txDoc => {
-        const txData = txDoc.data();
-        grandTotalSales += txData.total || 0;
-        grandTotalTxn++;
-
-        (txData.items || []).forEach(item => {
-          
-          const productId = item.produkIdString; 
-          if (!productId || item.isComplimentary) return; 
-
-          const qty = item.jumlah || 0;
-          const sales = (item.produkHarga || 0) * qty; 
-          
-          grandTotalItems += qty;
-          
-          const summary = productSummary.get(productId) || {
-            name: item.baseProdukNama || item.produkNama || 'Produk Dihapus',
-            qty: 0,
-            sales: 0,
-            transactions: [] // <-- [BARU] Siapkan array untuk rincian
-          };
-          
-          summary.qty += qty;
-          summary.sales += sales;
-          
-          // --- [BARU] Tambahkan data rincian transaksi ---
-          summary.transactions.push({
-            id: txDoc.id,
-            customer: txData.namaPelanggan || 'Umum',
-            time: txData.tanggal, // Ini adalah Timestamp
-            qty: qty,
-            sales: sales
-          });
-          // --- [AKHIR BARU] ---
-          
-          productSummary.set(productId, summary);
-        });
-      });
-      // --- AKHIR LANGKAH C ---
-      
-      setKpi({
-        totalSales: grandTotalSales,
-        totalTxn: grandTotalTxn,
-        totalItems: grandTotalItems
-      });
-      
-      const sortedReport = Array.from(productSummary.values())
-                                .sort((a, b) => b.qty - a.qty);
-      setReportData(sortedReport);
-      
-    } catch (error) {
-      console.error("Error fetching report:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user, startDate, endDate]);
-  // --- [AKHIR] Fungsi Fetch Laporan ---
-
-
-  // 3. Fetch data saat user pertama kali dimuat atau filter berubah
   useEffect(() => {
-    if (user) {
-      fetchReport();
-    }
-  }, [user, fetchReport]);
+    if (!user) return;
+    setLoading(true);
+    const productsRef = collection(db, "users", user.uid, "products");
+    const q = query(productsRef, orderBy("name"));
+    const unsubscribeDb = onSnapshot(q, (snapshot) => {
+      const prodsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setProducts(prodsData);
+    }, (error) => {
+      console.error("Error fetching products:", error);
+      setLoading(false);
+    });
+    return () => unsubscribeDb();
+  }, [user]);
 
-  const handleFilterApply = (e) => {
-    e.preventDefault();
-    fetchReport();
-  };
-  
-  // --- [BARU] Fungsi untuk membuka modal ---
-  const handleProductClick = (productData) => {
-    // Urutkan transaksi dari yang terbaru
-    const sortedTransactions = productData.transactions.sort(
-      (a, b) => b.time.seconds - a.time.seconds
-    );
-    
-    setModalData(sortedTransactions);
-    setSelectedProductName(productData.name);
+  useEffect(() => {
+    if (!user) return;
+    setLoading(true);
+    const costsRef = collection(db, "users", user.uid, "product_costs");
+    const unsubscribeCosts = onSnapshot(costsRef, (snapshot) => {
+      const costsData = {};
+      snapshot.docs.forEach(doc => {
+        costsData[doc.id] = doc.data().costing;
+      });
+      setProductCosts(costsData);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching product costs:", error);
+      setLoading(false);
+    });
+    return () => unsubscribeCosts();
+  }, [user]);
+
+  useEffect(() => {
+    const merged = products.map(prod => ({
+      ...prod,
+      costing: productCosts[prod.id] || 0
+    }));
+    setMergedProducts(merged);
+  }, [products, productCosts]);
+
+  // --- Fungsi Modal Edit/Tambah (Tidak Berubah) ---
+  const handleOpenModal = (product = null) => {
+    setSelectedProduct(product);
     setIsModalOpen(true);
   };
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedProduct(null);
+  };
+
+  // --- BARU: Fungsi untuk Modal Hapus ---
+  
+  // 1. Panggil ini saat ikon sampah diklik
+  const handleDeleteClick = (product) => {
+    setProductToDelete(product);
+    setIsDeleteModalOpen(true);
+  };
+
+  // 2. Panggil ini saat modal ditutup (Batal)
+  const handleCloseDeleteModal = () => {
+    setIsDeleteModalOpen(false);
+    setProductToDelete(null);
+  };
+
+  // 3. Panggil ini saat tombol "Ya, Hapus" diklik
+  const handleConfirmDelete = async () => {
+    if (!user || !productToDelete) return;
+    
+    setIsDeleting(true); // Mulai loading hapus
+    
+    try {
+      const productId = productToDelete.id;
+      // Hapus dari koleksi utama
+      const productRef = doc(db, "users", user.uid, "products", productId);
+      await deleteDoc(productRef);
+      
+      // Hapus dari koleksi costing
+      const costRef = doc(db, "users", user.uid, "product_costs", productId);
+      await deleteDoc(costRef);
+      
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      alert("Gagal menghapus produk.");
+    } finally {
+      setIsDeleting(false); // Selesai loading
+      handleCloseDeleteModal(); // Tutup modal
+    }
+  };
+  // --- AKHIR: Fungsi Modal Hapus ---
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-gray-900">Laporan Penjualan per Produk</h1>
-
-      {/* --- Filter Bar (Tidak berubah) --- */}
-      <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
-        <form onSubmit={handleFilterApply} className="grid grid-cols-1 gap-4 md:grid-cols-3 md:items-end">
-          <div>
-            <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">Dari Tanggal</label>
-            <input
-              type="date" id="startDate" value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="mt-1 block w-full rounded-lg border-gray-200 shadow-sm text-gray-900 focus:border-cyan-500 focus:ring-cyan-500 sm:text-sm"
-            />
-          </div>
-          <div>
-            <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">Sampai Tanggal</label>
-            <input
-              type="date" id="endDate" value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="mt-1 block w-full rounded-lg border-gray-200 shadow-sm text-gray-900 focus:border-cyan-500 focus:ring-cyan-500 sm:text-sm"
-            />
-          </div>
-          <button
-            type="submit" disabled={isLoading}
-            className="w-full rounded-xl bg-cyan-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-cyan-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 disabled:opacity-50"
-          >
-            {isLoading ? 'Memuat...' : 'Terapkan Filter'}
-          </button>
-        </form>
+      <div className="flex items-center justify-between">
+        <h2 className="text-3xl font-bold text-gray-900">Kelola Produk</h2>
+        <button
+          onClick={() => handleOpenModal()}
+          className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:bg-indigo-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+        >
+          <AddIcon />
+          <span>Tambah Produk</span>
+        </button>
       </div>
 
-      {/* --- KPI Cards (Tidak berubah) --- */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <SummaryCard title="Total Omzet (Penjualan)" value={formatRupiah(kpi.totalSales)} icon={<MdAttachMoney />} />
-        <SummaryCard title="Total Transaksi" value={kpi.totalTxn.toString()} icon={<MdReceiptLong />} />
-        <SummaryCard title="Total Item Terjual" value={kpi.totalItems.toString()} icon={<MdInventory2 />} />
-      </div>
-
-      {/* --- Tabel Hasil Laporan (DIPERBARUI) --- */}
       <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 overflow-hidden">
-        {isLoading ? (
-          <LoadingSpinner />
-        ) : reportData.length === 0 ? (
-          <EmptyState />
+        {loading ? (
+          <p className="p-6 text-center">Memuat produk...</p>
+        ) : mergedProducts.length === 0 ? (
+          <p className="p-6 text-center text-gray-500">Belum ada produk. Silakan tambahkan.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-100">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Nama Produk</th>
-                  <th className="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-600">Terjual (Qty)</th>
-                  <th className="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-600">Total Omzet</th>
-                  <th className="relative px-6 py-3.5">
-                    <span className="sr-only">Detail</span>
-                  </th>
+                  <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Kategori</th>
+                  <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Harga Pokok</th>
+                  <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Harga Jual</th>
+                  <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Tipe</th>
+                  <th className="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-600">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
-                {reportData.map((item, index) => (
-                  // --- [BARU] Baris tabel dibuat klikabel ---
-                  <tr 
-                    key={item.name + index} 
-                    onClick={() => handleProductClick(item)} // <-- Aksi klik
-                    className="transition-colors hover:bg-gray-50 cursor-pointer" // <-- Tambah cursor
-                  >
-                    <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">{item.name}</td>
-                    <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-bold text-cyan-700">{item.qty}</td>
-                    <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium text-gray-700">{formatRupiah(item.sales)}</td>
-                    {/* --- [BARU] Ikon panah untuk indikator --- */}
-                    <td className="whitespace-nowrap px-6 py-4 text-right text-gray-400">
-                      <MdChevronRight className="w-5 h-5" />
+                {mergedProducts.map((prod) => (
+                  <tr key={prod.id} className="transition-colors hover:bg-gray-50">
+                    <td className="whitespace-nowrap px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-700">
+                          <ProductIcon />
+                        </div>
+                        <p className="text-sm font-medium text-gray-900">{prod.name}</p>
+                      </div>
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-600">{prod.kategori}</td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-red-700">{formatRupiah(prod.costing)}</td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-gray-700">{formatRupiah(prod.harga)}</td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-600">{getProductTypeDisplayName(prod.productType)}</td>
+                    <td className="whitespace-nowrap px-6 py-4 text-right">
+                      <button
+                        onClick={() => handleOpenModal(prod)}
+                        className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-indigo-100 hover:text-indigo-700"
+                        title="Edit"
+                      >
+                        <EditIcon />
+                      </button>
+                      <button
+                        // --- PERBARUI: Panggil handleDeleteClick ---
+                        onClick={() => handleDeleteClick(prod)}
+                        className="ml-2 rounded-lg p-2 text-gray-500 transition-colors hover:bg-red-100 hover:text-red-700"
+                        title="Hapus"
+                      >
+                        <DeleteIcon />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -368,13 +291,24 @@ export default function LaporanProdukPage() {
           </div>
         )}
       </div>
-      
-      {/* --- [BARU] Render Modal --- */}
-      <TransactionDetailModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        productName={selectedProductName}
-        transactions={modalData}
+
+      {/* Modal Form Produk (Tidak berubah) */}
+      {isModalOpen && (
+         <ProductModal
+           isOpen={isModalOpen}
+           onClose={handleCloseModal}
+           product={selectedProduct}
+           userId={user?.uid}
+         />
+      )}
+
+      {/* --- BARU: Render Modal Konfirmasi Hapus --- */}
+      <ConfirmDeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={handleCloseDeleteModal}
+        onConfirm={handleConfirmDelete}
+        productName={productToDelete?.name || ''}
+        isDeleting={isDeleting}
       />
 
     </div>

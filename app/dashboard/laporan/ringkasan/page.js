@@ -8,7 +8,7 @@ import { auth, db } from "@/lib/firebaseConfig";
 import { useRouter } from 'next/navigation';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-// --- Ikon ---
+// --- [PERUBAHAN] Ikon disamakan dengan profitabilitas ---
 import {
   MdInbox,
   MdShowChart,
@@ -18,8 +18,13 @@ import {
   MdKeyboardArrowDown,
   MdTrendingUp,
   MdTrendingDown,
-  MdRemove
+  MdRemove,
+  MdAttachMoney, // <-- Ditambahkan
+  MdWarning,     // <-- Ditambahkan
+  MdInsights,    // <-- Ditambahkan
+  MdStar         // <-- Ditambahkan
 } from 'react-icons/md';
+// --- Akhir Ikon ---
 
 // --- Helper Functions ---
 const formatDateToInput = (date) => date.toISOString().split('T')[0];
@@ -60,20 +65,34 @@ const EmptyState = () => (
   </div>
 );
 
-// Enhanced Summary Card 
-const SummaryCard = ({ title, value, icon }) => (
-  <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
-    <div className="flex items-center gap-4">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-cyan-50 text-2xl text-cyan-700">
-        {icon}
+// --- [PERUBAHAN] EnhancedSummaryCard (diambil dari profitabilitas/page.js) ---
+const EnhancedSummaryCard = ({ title, value, subtitle, icon, className = '', onClick }) => {
+  
+  const isClickable = !!onClick;
+  const CardComponent = isClickable ? 'button' : 'div';
+
+  return (
+    <CardComponent
+      type={isClickable ? 'button' : undefined}
+      onClick={isClickable ? onClick : undefined}
+      disabled={isClickable ? !onClick : undefined}
+      suppressHydrationWarning={true}
+      className={`rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100 text-left transition-all ${className} ${isClickable ? 'hover:shadow-lg hover:ring-2 hover:ring-cyan-200 cursor-pointer' : 'cursor-default'}`}
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-50 to-cyan-100 text-2xl text-cyan-700 shadow-sm">{icon}</div>
+          <div>
+            <p className="text-sm font-medium text-gray-500">{title}</p>
+            <p className="mt-1 text-3xl font-bold text-gray-900">{value}</p>
+            {subtitle && <p className="mt-1 text-xs text-gray-500">{subtitle}</p>}
+          </div>
+        </div>
       </div>
-      <div>
-        <p className="text-sm font-medium text-gray-500">{title}</p>
-        <p className="mt-1 text-2xl font-bold text-gray-900 truncate">{value}</p>
-      </div>
-    </div>
-  </div>
-);
+    </CardComponent>
+  );
+};
+// --- [AKHIR PERUBAHAN] ---
 
 // Progress Bar Component
 const ProgressBar = ({ value, max, color = 'bg-cyan-600' }) => {
@@ -88,30 +107,28 @@ const ProgressBar = ({ value, max, color = 'bg-cyan-600' }) => {
   );
 };
 
-// Insight Card Component
-const InsightCard = ({ icon, text, type = 'info' }) => {
-  const bgColors = {
-    success: 'bg-green-50 border-green-200',
-    warning: 'bg-orange-50 border-orange-200',
-    info: 'bg-blue-50 border-blue-200',
-    danger: 'bg-red-50 border-red-200'
+// --- [PERUBAHAN] InsightCard (diambil dari profitabilitas/page.js) ---
+const InsightCard = ({ icon, title, description, type = 'info' }) => {
+  const styles = {
+    info: 'bg-blue-50 border-blue-200 text-blue-800',
+    success: 'bg-green-50 border-green-200 text-green-800',
+    warning: 'bg-amber-50 border-amber-200 text-amber-800',
+    danger: 'bg-red-50 border-red-200 text-red-800'
   };
-  const textColors = {
-    success: 'text-green-700',
-    warning: 'text-orange-700',
-    info: 'text-blue-700',
-    danger: 'text-red-700'
-  };
-  
+
   return (
-    <div className={`rounded-xl p-4 border ${bgColors[type]}`}>
-      <div className="flex items-start gap-3">
-        <div className={`${textColors[type]} mt-0.5`}>{icon}</div>
-        <p className={`text-sm font-medium ${textColors[type]}`}>{text}</p>
+    <div className={`rounded-xl border-l-4 p-4 shadow-sm ${styles[type]}`}>
+      <div className="flex gap-3">
+        <div className="flex-shrink-0 text-xl">{icon}</div>
+        <div>
+          <p className="font-semibold text-sm">{title}</p>
+          <p className="text-sm mt-1 opacity-90">{description}</p>
+        </div>
       </div>
     </div>
   );
 };
+// --- [AKHIR PERUBAHAN] ---
 
 const DetailRow = ({ title, value, colorClass, details, isOpen, onToggle }) => {
   const hasDetails = details && Object.keys(details).length > 0;
@@ -329,38 +346,47 @@ export default function RingkasanPage() {
     value
   }));
 
-  // Generate insights
+  // --- [PERUBAHAN] Generate insights (menggunakan format title/description) ---
   const insights = [];
-  if (onlinePercentage > 50) {
-    insights.push({
-      type: 'success',
-      icon: <MdTrendingUp className="w-5 h-5" />,
-      text: `Penjualan online mendominasi ${onlinePercentage.toFixed(0)}% dari total penjualan`
-    });
+  if (!isLoading && kpi.totalTxn > 0) {
+    if (onlinePercentage > 50) {
+      insights.push({
+        type: 'success',
+        icon: <MdTrendingUp />,
+        title: 'Penjualan Online Dominan',
+        description: `Penjualan online mendominasi ${onlinePercentage.toFixed(0)}% dari total penjualan.`
+      });
+    }
+    if (refundRate > 10) {
+      insights.push({
+        type: 'warning',
+        icon: <MdWarning />,
+        title: 'Tingkat Refund Tinggi',
+        description: `Tingkat refund ${refundRate.toFixed(1)}% dari total transaksi. Perlu dievaluasi.`
+      });
+    }
+    if (pieData.length > 0) {
+      const topPayment = pieData[0];
+      const topPercentage = (topPayment.value / kpi.totalSales) * 100;
+      insights.push({
+        type: 'info',
+        icon: <MdShowChart />,
+        title: 'Metode Pembayaran Favorit',
+        description: `${topPayment.name} adalah metode pembayaran favorit (${topPercentage.toFixed(0)}%).`
+      });
+    }
   }
-  if (refundRate > 10) {
-    insights.push({
-      type: 'warning',
-      icon: <MdTrendingDown className="w-5 h-5" />,
-      text: `Tingkat refund tinggi: ${refundRate.toFixed(1)}% dari total transaksi`
-    });
-  }
-  if (pieData.length > 0) {
-    const topPayment = pieData[0];
-    const topPercentage = (topPayment.value / kpi.totalSales) * 100;
-    insights.push({
-      type: 'info',
-      icon: <MdShowChart className="w-5 h-5" />,
-      text: `${topPayment.name} adalah metode pembayaran favorit (${topPercentage.toFixed(0)}%)`
-    });
-  }
+  // --- [AKHIR PERUBAHAN] ---
   
   return (
     <div className="space-y-6">
       {/* Header & Filter */}
       <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
         <div className="border-b border-gray-100 pb-6 mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Laporan Ringkasan</h1>
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+             <MdShowChart className="w-8 h-8 text-cyan-700" />
+             Laporan Ringkasan
+          </h1>
           <p className="mt-1 text-sm text-gray-500">Analisis komprehensif performa penjualan Anda</p>
         </div>
 
@@ -396,71 +422,34 @@ export default function RingkasanPage() {
         <EmptyState />
       ) : (
         <>
-          {/* Key Metrics */}
+          {/* --- [PERUBAHAN] Key Metrics (menggunakan EnhancedSummaryCard) --- */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <SummaryCard 
+            <EnhancedSummaryCard 
               title="Total Penjualan" 
               value={formatRupiah(kpi.totalSales)} 
-              icon={<MdShowChart className="w-6 h-6" />}
-              colorClass="text-cyan-700"
+              subtitle="Penjualan kotor (non-refund)"
+              icon={<MdAttachMoney />}
             />
-            <SummaryCard 
+            <EnhancedSummaryCard 
               title="Rata-rata/Transaksi" 
               value={formatRupiah(avgTransaction)} 
-              icon={<MdReceiptLong className="w-6 h-6" />}
-              colorClass="text-blue-600"
+              subtitle="Rata-rata nilai per order"
+              icon={<MdReceiptLong />}
             />
-            <SummaryCard 
+            <EnhancedSummaryCard 
               title="Total Transaksi" 
               value={kpi.totalTxn.toString()} 
-              icon={<MdReceiptLong className="w-6 h-6" />}
-              colorClass="text-purple-600"
+              subtitle="Total order selesai"
+              icon={<MdReceiptLong />}
             />
-            <SummaryCard 
+            <EnhancedSummaryCard 
               title="Item Terjual" 
               value={kpi.totalItems.toString()} 
-              icon={<MdInventory2 className="w-6 h-6" />}
-              colorClass="text-green-600"
+              subtitle="Total item non-komplimen"
+              icon={<MdInventory2 />}
             />
           </div>
-
-
-          {/* Charts Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Daily Trend Chart */}
-            {dailyTrend.length > 1 && (
-              <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Tren Penjualan Harian</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={dailyTrend}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis 
-                      dataKey="date" 
-                      tick={{ fontSize: 12 }}
-                      tickFormatter={(date) => {
-                        const d = new Date(date);
-                        return `${d.getDate()}/${d.getMonth() + 1}`;
-                      }}
-                    />
-                    <YAxis tick={{ fontSize: 12 }} tickFormatter={(val) => formatCompactNumber(val)} />
-                    <Tooltip 
-                      formatter={(value) => formatRupiah(value)}
-                      labelFormatter={(date) => {
-                        const d = new Date(date);
-                        return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
-                      }}
-                    />
-                    <Legend />
-                    <Line type="monotone" dataKey="total" stroke="#0e7490" strokeWidth={2} name="Total" />
-                    <Line type="monotone" dataKey="online" stroke="#06b6d4" strokeWidth={2} name="Online" />
-                    <Line type="monotone" dataKey="offline" stroke="#67e8f9" strokeWidth={2} name="Offline" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-
-            
-          </div>
+          {/* --- [AKHIR PERUBAHAN] --- */}
 
           {/* Online vs Offline Comparison */}
           <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">

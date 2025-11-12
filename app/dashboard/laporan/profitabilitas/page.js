@@ -39,7 +39,9 @@ import {
   MdInsights,
   MdBarChart,
   MdPieChart,
-  MdStorage
+  MdStorage,
+  MdVisibility, // <-- [BARU] Menambahkan ikon mata
+  MdCardGiftcard // <-- [BARU] Ikon untuk komplimen
 } from 'react-icons/md';
 
 // --- Registrasi Komponen Chart.js ---
@@ -93,13 +95,10 @@ const EmptyState = () => (
   </div>
 );
 
-// --- [PERBAIKAN] Enhanced Summary Card (dihapus 'badge') ---
+// --- [PERBAIKAN] Enhanced Summary Card (ditambah ikon mata) ---
 const EnhancedSummaryCard = ({ title, value, subtitle, icon, className = '', onClick }) => {
   
-  // Tentukan apakah ini kartu yang bisa diklik
   const isClickable = !!onClick;
-  
-  // Gunakan <button> jika bisa diklik, <div> jika tidak
   const CardComponent = isClickable ? 'button' : 'div';
 
   return (
@@ -108,7 +107,8 @@ const EnhancedSummaryCard = ({ title, value, subtitle, icon, className = '', onC
       onClick={isClickable ? onClick : undefined}
       disabled={isClickable ? !onClick : undefined}
       suppressHydrationWarning={true}
-      className={`rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100 text-left transition-all ${className} ${isClickable ? 'hover:shadow-lg hover:ring-2 hover:ring-cyan-200 cursor-pointer' : 'cursor-default'}`}
+      // [BARU] Menambahkan 'group' untuk hover
+      className={`group rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100 text-left transition-all ${className} ${isClickable ? 'hover:shadow-lg hover:ring-2 hover:ring-cyan-200 cursor-pointer' : 'cursor-default'}`}
     >
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-4">
@@ -116,17 +116,22 @@ const EnhancedSummaryCard = ({ title, value, subtitle, icon, className = '', onC
           <div>
             <p className="text-sm font-medium text-gray-500">{title}</p>
             <p className="mt-1 text-3xl font-bold text-gray-900">{value}</p>
-            {/* Subtitle akan diisi secara dinamis dari parent */}
             {subtitle && <p className="mt-1 text-xs text-gray-500">{subtitle}</p>}
           </div>
         </div>
-        {/* Badge dihapus dari sini */}
+        {/* --- [BARU] Menambahkan ikon mata jika bisa diklik --- */}
+        {isClickable && (
+          <div className="flex-shrink-0 text-gray-400 transition-colors group-hover:text-cyan-600">
+            <MdVisibility className="w-5 h-5" />
+          </div>
+        )}
+        {/* --- AKHIR TAMBAHAN --- */}
       </div>
     </CardComponent>
   );
 };
 
-// --- [PERBAIKAN] Insight Card (ditambah shadow-sm) ---
+// --- Insight Card (ditambah shadow-sm) ---
 const InsightCard = ({ icon, title, description, type = 'info' }) => {
   const styles = {
     info: 'bg-blue-50 border-blue-200 text-blue-800',
@@ -160,6 +165,65 @@ const PerformanceBadge = ({ margin }) => {
     return <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700"><MdWarning className="w-3 h-3" /> Low</span>;
   }
 };
+
+// --- [BARU] Modal Rincian OMZET ---
+const OmzetDetailModal = ({ isOpen, onClose, kpi }) => {
+  if (!isOpen) return null;
+  
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl flex flex-col">
+        <div className="flex items-center justify-between border-b border-gray-100 p-6">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">Rincian Total Omzet</h3>
+            <p className="text-sm text-gray-500 mt-0.5">Komponen pembentuk omzet kotor</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
+            title="Tutup"
+          >
+            <MdClose className="w-6 h-6" />
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="flex justify-between items-center rounded-lg bg-gray-50 p-4">
+            <div className="flex items-center gap-3">
+              <MdReceiptLong className="w-5 h-5 text-gray-500" />
+              <span className="text-sm font-medium text-gray-700">Penjualan (Non-Komplimen)</span>
+            </div>
+            <span className="text-lg font-bold text-gray-900">{formatRupiah(kpi.actualSales)}</span>
+          </div>
+          <div className="flex justify-between items-center rounded-lg bg-gray-50 p-4">
+            <div className="flex items-center gap-3">
+              <MdCardGiftcard className="w-5 h-5 text-blue-500" />
+              <span className="text-sm font-medium text-gray-700">Nilai Komplimen</span>
+            </div>
+            <span className="text-lg font-bold text-blue-600">+ {formatRupiah(kpi.complimentaryValue)}</span>
+          </div>
+          <hr className="my-2 border-gray-200 border-dashed" />
+          <div className="flex justify-between items-center bg-cyan-50 p-4 rounded-lg ring-1 ring-cyan-200">
+            <div className="flex items-center gap-3">
+               <MdAttachMoney className="w-5 h-5 text-cyan-700" />
+              <span className="text-base font-bold text-cyan-800">Total Omzet (Kotor)</span>
+            </div>
+            <span className="text-xl font-bold text-cyan-800">{formatRupiah(kpi.totalSales)}</span>
+          </div>
+        </div>
+        <div className="border-t border-gray-100 bg-gray-50 p-4 text-right rounded-b-2xl">
+            <button
+              onClick={onClose}
+              className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+            >
+              Tutup
+            </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+// --- [AKHIR] Modal Rincian OMZET ---
+
 
 const ProfitDetailModal = ({ isOpen, onClose, kpi }) => {
   if (!isOpen) return null;
@@ -385,13 +449,22 @@ export default function ProfitabilitasPage() {
   const [endDate, setEndDate] = useState(formatDateToInput(getToday()));
   
   const [reportData, setReportData] = useState([]);
+  
+  // --- [PERUBAHAN] State KPI ditambah rincian omzet ---
   const [kpi, setKpi] = useState({ 
     totalSales: 0, 
     totalCost: 0, 
     totalDiscount: 0,
-    totalProfit: 0 
+    totalProfit: 0,
+    actualSales: 0, // <-- BARU
+    complimentaryValue: 0 // <-- BARU
   });
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // --- [PERUBAHAN] State Modal dipisah ---
+  const [isProfitModalOpen, setIsProfitModalOpen] = useState(false);
+  const [isOmzetModalOpen, setIsOmzetModalOpen] = useState(false);
+  // --- AKHIR PERUBAHAN ---
+  
   const [showDetailTable, setShowDetailTable] = useState(false);
 
   useEffect(() => {
@@ -409,7 +482,11 @@ export default function ProfitabilitasPage() {
     if (!user) return;
     setIsLoading(true);
     setReportData([]);
-    setKpi({ totalSales: 0, totalCost: 0, totalDiscount: 0, totalProfit: 0 }); 
+    // --- [PERUBAHAN] Reset state KPI ---
+    setKpi({ 
+      totalSales: 0, totalCost: 0, totalDiscount: 0, totalProfit: 0, 
+      actualSales: 0, complimentaryValue: 0 
+    }); 
 
     try {
       const costsRef = collection(db, "users", user.uid, "product_costs");
@@ -438,6 +515,9 @@ export default function ProfitabilitasPage() {
       let grandTotalSales = 0;
       let grandTotalCost = 0;
       let grandTotalDiscount = 0; 
+      // --- [BARU] Akumulator untuk rincian omzet ---
+      let actualSales = 0;
+      let complimentaryValue = 0;
 
       txSnap.docs.forEach(txDoc => {
         const txData = txDoc.data();
@@ -451,8 +531,16 @@ export default function ProfitabilitasPage() {
           const sales = (item.produkHarga || 0) * qty;
           const cost = (productCostsMap.get(productId) || 0) * qty; 
 
-          grandTotalSales += sales;
-          grandTotalCost += cost;
+          grandTotalSales += sales; // Total Omzet (kotor)
+          grandTotalCost += cost;  // Total HPP (kotor)
+          
+          // --- [BARU] Logika untuk memisah omzet ---
+          if (item.isComplimentary) {
+            complimentaryValue += sales;
+          } else {
+            actualSales += sales;
+          }
+          // --- AKHIR BARU ---
           
           const summary = productSummary.get(productId) || {
             name: item.baseProdukNama || item.produkNama || 'Produk Dihapus',
@@ -469,12 +557,16 @@ export default function ProfitabilitasPage() {
         });
       });
       
+      // --- [PERUBAHAN] Set KPI dengan data baru ---
       setKpi({
         totalSales: grandTotalSales,
         totalCost: grandTotalCost,
         totalDiscount: grandTotalDiscount,
-        totalProfit: grandTotalSales - grandTotalCost - grandTotalDiscount
+        totalProfit: grandTotalSales - grandTotalCost - grandTotalDiscount,
+        actualSales: actualSales,
+        complimentaryValue: complimentaryValue
       });
+      // --- AKHIR PERUBAHAN ---
       
       const sortedReport = Array.from(productSummary.values())
                                 .sort((a, b) => b.profit - a.profit);
@@ -482,7 +574,6 @@ export default function ProfitabilitasPage() {
       
     } catch (error) {
       console.error("Error fetching report:", error);
-      // [PERBAIKAN] Tambahkan notifikasi error jika query gagal (misal: karena indeks)
       toast.error("Gagal memuat data. (Error: " + error.code + ")", {
         description: "Query ini mungkin memerlukan indeks. Cek console (F12) untuk link pembuatan indeks."
       });
@@ -558,11 +649,9 @@ export default function ProfitabilitasPage() {
   const profitMargin = kpi.totalSales > 0 ? ((kpi.totalProfit / kpi.totalSales) * 100) : 0;
   
   return (
-    // [PERBAIKAN] Layout dikembalikan ke space-y-6 (latar belakang abu-abu)
     <div className="space-y-6">
       
       {/* Filter Bar (Header Card) */}
-      {/* [PERBAIKAN] Menggunakan shadow-sm standar */}
       <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
         <div className="border-b border-gray-100 pb-6 mb-6">
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
@@ -600,11 +689,13 @@ export default function ProfitabilitasPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        {/* --- [PERUBAHAN] Kartu Omzet memanggil modal Omzet --- */}
         <EnhancedSummaryCard 
           title="Total Omzet" 
           value={formatRupiah(kpi.totalSales)} 
           subtitle="Penjualan kotor"
           icon={<MdAttachMoney />}
+          onClick={() => setIsOmzetModalOpen(true)} // <-- Diubah
         />
         <EnhancedSummaryCard 
           title="Total HPP" 
@@ -613,16 +704,14 @@ export default function ProfitabilitasPage() {
           icon={<MdInventory2 />} 
           className="bg-red-50" 
         />
+        {/* --- [PERUBAHAN] Kartu Profit memanggil modal Profit --- */}
         <EnhancedSummaryCard 
           title="Total Profit" 
           value={formatRupiah(kpi.totalProfit)}
-          // --- [PERBAIKAN UTAMA DI SINI] ---
           subtitle={profitMargin > 0 ? `Laba kotor (${formatPercent(profitMargin)} margin)` : "Laba kotor"}
-          // --- [AKHIR PERBAIKAN UTAMA] ---
           icon={<MdTrendingUp />} 
           className="bg-green-50" 
-          onClick={() => setIsModalOpen(true)}
-          // badge prop dihapus
+          onClick={() => setIsProfitModalOpen(true)} // <-- Diubah
         />
         <EnhancedSummaryCard 
           title="Total Diskon" 
@@ -654,7 +743,6 @@ export default function ProfitabilitasPage() {
       {/* Charts Section */}
       {!isLoading && (kpi.totalSales > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* [PERBAIKAN SHADOW] shadow-sm */}
           <div className="lg:col-span-2 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -670,7 +758,6 @@ export default function ProfitabilitasPage() {
             </div>
           </div>
           
-          {/* [PERBAIKAN SHADOW] shadow-sm */}
           <div className="lg:col-span-1 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
              <div className="mb-4">
                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -687,7 +774,6 @@ export default function ProfitabilitasPage() {
       )}
 
       {/* Detail Table - Collapsible */}
-      {/* [PERBAIKAN SHADOW] shadow-sm */}
       {!isLoading && reportData.length > 0 && (
         <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 overflow-hidden">
           <button
@@ -782,12 +868,18 @@ export default function ProfitabilitasPage() {
         </div>
       )}
 
-      {/* Modal */}
+      {/* --- [PERUBAHAN] Render kedua modal --- */}
       <ProfitDetailModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        isOpen={isProfitModalOpen}
+        onClose={() => setIsProfitModalOpen(false)}
         kpi={kpi}
       />
+      <OmzetDetailModal
+        isOpen={isOmzetModalOpen}
+        onClose={() => setIsOmzetModalOpen(false)}
+        kpi={kpi}
+      />
+      {/* --- AKHIR PERUBAHAN --- */}
 
     </div>
   );
