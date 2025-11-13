@@ -3,48 +3,48 @@ import { NextResponse } from 'next/server';
 import admin from 'firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
 
-// --- [PERUBAHAN KUNCI DI SINI] ---
-// JANGAN 'require' file di sini
-
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-// Logika Kunci Rahasia (Deploy vs Lokal)
-let serviceAccount;
-
-// 1. Cek apakah kita sedang di Vercel/Deploy
-if (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
-  console.log("Mendeteksi FIREBASE_SERVICE_ACCOUNT_BASE64. Mode Deploy.");
-  // Ambil string Base64 dari Vercel
-  const base64Key = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
-  // Decode string itu kembali menjadi JSON
-  const serviceAccountJson = Buffer.from(base64Key, 'base64').toString('utf8');
-  // Parse JSON-nya
-  serviceAccount = JSON.parse(serviceAccountJson);
-} else {
-  // 2. Fallback: Jika tidak ada, BARU 'require' file lokal
-  console.log("Menggunakan file serviceAccountKey.json (Mode Lokal).");
-  // 'require' sekarang aman di dalam 'else'
-  serviceAccount = require('../../../serviceAccountKey.json'); 
+// --- [PERUBAHAN KUNCI DI SINI] ---
+// Fungsi async untuk load service account
+async function getServiceAccount() {
+  // 1. Cek apakah kita sedang di Vercel/Deploy
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
+    console.log("Mendeteksi FIREBASE_SERVICE_ACCOUNT_BASE64. Mode Deploy.");
+    const base64Key = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
+    const serviceAccountJson = Buffer.from(base64Key, 'base64').toString('utf8');
+    return JSON.parse(serviceAccountJson);
+  } else {
+    // 2. Mode lokal - gunakan dynamic import
+    console.log("Menggunakan file serviceAccountKey.json (Mode Lokal).");
+    const fs = await import('fs');
+    const path = await import('path');
+    const filePath = path.join(process.cwd(), 'serviceAccountKey.json');
+    const fileContent = fs.readFileSync(filePath, 'utf8');
+    return JSON.parse(fileContent);
+  }
 }
 // --- AKHIR PERUBAHAN ---
 
-
-// Inisialisasi Firebase Admin
-if (!admin.apps.length) {
-  try {
-    admin.initializeApp({
-      // Gunakan serviceAccount yang sudah dinamis (dari atas)
-      credential: admin.credential.cert(serviceAccount), 
-    });
-    console.log("✅ Firebase Admin SDK Terinisialisasi.");
-  } catch (error) {
-    console.error("❌ Gagal inisialisasi Firebase Admin:", error.message);
+// Inisialisasi Firebase Admin (async)
+async function initializeFirebase() {
+  if (!admin.apps.length) {
+    try {
+      const serviceAccount = await getServiceAccount();
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+      console.log("✅ Firebase Admin SDK Terinisialisasi.");
+    } catch (error) {
+      console.error("❌ Gagal inisialisasi Firebase Admin:", error.message);
+      throw error;
+    }
   }
+  return admin.firestore();
 }
-const dbAdmin = admin.firestore();
 
 // ---------------------------------
-// [FUNGSI getStoreContext] (Tidak ada perubahan)
+// [FUNGSI getStoreContext]
 // ---------------------------------
 async function getStoreContext(userId, prompt) {
   if (!userId) {
@@ -52,15 +52,14 @@ async function getStoreContext(userId, prompt) {
   }
 
   try {
+    const dbAdmin = await initializeFirebase();
     console.log(`[Admin SDK] Mengambil data untuk user: ${userId}`);
     
-    // 1. Deteksi rentang waktu dari pertanyaan
-    const timeRange = detectTimeRange(prompt); // Pastikan fungsi detectTimeRange ada di bawah
+    const timeRange = detectTimeRange(prompt);
     console.log(`⏰ Rentang waktu terdeteksi: ${timeRange.label}`);
     console.log(`   Dari: ${timeRange.start.toLocaleDateString('id-ID')}`);
     console.log(`   Sampai: ${timeRange.end.toLocaleDateString('id-ID')}`);
 
-    // 2. Query transaksi
     const txQuery = dbAdmin.collection("users").doc(userId).collection("transactions")
       .where('tanggal', '>=', Timestamp.fromDate(timeRange.start))
       .where('tanggal', '<=', Timestamp.fromDate(timeRange.end))
@@ -68,9 +67,8 @@ async function getStoreContext(userId, prompt) {
     
     const txSnap = await txQuery.get();
 
-    // 3. Proses data transaksi
-    let totalSales = 0; // Omzet bersih (yang dibayar customer)
-    let totalGrossSales = 0; // Omzet kotor (termasuk komplimen)
+    let totalSales = 0;
+    let totalGrossSales = 0;
     let totalTxn = 0;
     let totalRefund = 0;
     let totalDiscount = 0;
@@ -118,11 +116,9 @@ async function getStoreContext(userId, prompt) {
       }
     });
 
-    // 4. Ambil data produk untuk info tambahan
     const productsSnap = await dbAdmin.collection("users").doc(userId).collection("products").get();
     const totalProducts = productsSnap.size;
 
-    // 5. Format data menjadi teks konteks
     const formatRupiah = (value) => new Intl.NumberFormat('id-ID', { 
       style: 'currency', 
       currency: 'IDR',
@@ -193,13 +189,12 @@ METODE PEMBAYARAN:
 }
 
 // ---------------------------------
-// [FUNGSI detectTimeRange] (Salin fungsi Anda yang sudah ada ke sini)
+// [FUNGSI detectTimeRange]
 // ---------------------------------
 function detectTimeRange(prompt) {
   const lowerPrompt = prompt.toLowerCase();
   const today = new Date();
   
-  // Helper untuk set waktu
   const setStartOfDay = (date) => {
     date.setHours(0, 0, 0, 0);
     return date;
@@ -209,7 +204,6 @@ function detectTimeRange(prompt) {
     return date;
   };
   
-  // HARI INI
   if (lowerPrompt.includes('hari ini') || lowerPrompt.includes('today')) {
     return {
       start: setStartOfDay(new Date(today)),
@@ -218,7 +212,6 @@ function detectTimeRange(prompt) {
     };
   }
   
-  // KEMARIN
   if (lowerPrompt.includes('kemarin') || lowerPrompt.includes('yesterday')) {
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
@@ -229,10 +222,9 @@ function detectTimeRange(prompt) {
     };
   }
   
-  // MINGGU INI
   if (lowerPrompt.includes('minggu ini') || lowerPrompt.includes('this week')) {
     const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay()); // Minggu = hari ke-0
+    startOfWeek.setDate(today.getDate() - today.getDay());
     return {
       start: setStartOfDay(startOfWeek),
       end: setEndOfDay(new Date(today)),
@@ -240,7 +232,6 @@ function detectTimeRange(prompt) {
     };
   }
   
-  // BULAN INI
   if (lowerPrompt.includes('bulan ini') || lowerPrompt.includes('this month')) {
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     return {
@@ -250,7 +241,6 @@ function detectTimeRange(prompt) {
     };
   }
   
-  // 7 HARI TERAKHIR
   if (lowerPrompt.includes('7 hari') || lowerPrompt.includes('seminggu terakhir')) {
     const sevenDaysAgo = new Date(today);
     sevenDaysAgo.setDate(today.getDate() - 7);
@@ -261,7 +251,6 @@ function detectTimeRange(prompt) {
     };
   }
   
-  // 30 HARI TERAKHIR
   if (lowerPrompt.includes('30 hari') || lowerPrompt.includes('sebulan terakhir')) {
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(today.getDate() - 30);
@@ -272,7 +261,6 @@ function detectTimeRange(prompt) {
     };
   }
   
-  // TANGGAL SPESIFIK (Anda bisa salin logika Anda yang lebih lengkap)
   const monthNames = {
     'januari': 0, 'februari': 1, 'maret': 2, 'april': 3, 'mei': 4, 'juni': 5,
     'juli': 6, 'agustus': 7, 'september': 8, 'oktober': 9, 'november': 10, 'desember': 11
@@ -330,7 +318,6 @@ function detectTimeRange(prompt) {
     }
   }
   
-  // DEFAULT: BULAN INI
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   return {
     start: setStartOfDay(startOfMonth),
@@ -339,9 +326,8 @@ function detectTimeRange(prompt) {
   };
 }
 
-
 // ---------------------------------
-// [FUNGSI callGeminiAPI] (Tidak ada perubahan)
+// [FUNGSI callGeminiAPI]
 // ---------------------------------
 let cachedAvailableModel = null;
 async function getAvailableModels() {
@@ -362,6 +348,7 @@ async function getAvailableModels() {
     return [];
   }
 }
+
 async function getBestAvailableModel() {
   if (cachedAvailableModel) {
     console.log(`♻️ Menggunakan cached model: ${cachedAvailableModel}`);
@@ -389,6 +376,7 @@ async function getBestAvailableModel() {
   cachedAvailableModel = fallbackModel;
   return fallbackModel;
 }
+
 async function callGeminiAPI(finalPrompt) {
   try {
     const modelName = await getBestAvailableModel();
@@ -437,7 +425,7 @@ async function callGeminiAPI(finalPrompt) {
 }
 
 // ---------------------------------
-// [FUNGSI POST UTAMA] (Tidak ada perubahan)
+// [FUNGSI POST UTAMA]
 // ---------------------------------
 export async function POST(req) {
   try {
@@ -453,14 +441,12 @@ export async function POST(req) {
         error: "Prompt tidak boleh kosong" 
       }, { status: 400 });
     }
-    console.log(`\n📝 Menerima prompt: "${prompt.substring(0, 100)}${prompt.length > 100 ? '...' : ''}"`);
+    console.log(`\n🔔 Menerima prompt: "${prompt.substring(0, 100)}${prompt.length > 100 ? '...' : ''}"`);
     console.log(`👤 UserID: ${userId || 'Anonymous'}`);
     
-    // Ambil data toko (sekarang dengan deteksi rentang waktu otomatis)
     const contextData = await getStoreContext(userId, prompt);
     console.log(`ℹ️ Konteks data diambil`);
     
-    // Buat prompt yang lebih smart
     const finalPrompt = `
 Anda adalah 'Asisten AI Fiska', asisten bisnis yang cerdas dan ramah untuk pemilik toko.
 
