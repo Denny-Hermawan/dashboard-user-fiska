@@ -3,14 +3,38 @@ import { NextResponse } from 'next/server';
 import admin from 'firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
 
-const serviceAccount = require('../../../serviceAccountKey.json');
+// --- [PERUBAHAN KUNCI DI SINI] ---
+// JANGAN 'require' file di sini
+
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+// Logika Kunci Rahasia (Deploy vs Lokal)
+let serviceAccount;
+
+// 1. Cek apakah kita sedang di Vercel/Deploy
+if (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
+  console.log("Mendeteksi FIREBASE_SERVICE_ACCOUNT_BASE64. Mode Deploy.");
+  // Ambil string Base64 dari Vercel
+  const base64Key = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
+  // Decode string itu kembali menjadi JSON
+  const serviceAccountJson = Buffer.from(base64Key, 'base64').toString('utf8');
+  // Parse JSON-nya
+  serviceAccount = JSON.parse(serviceAccountJson);
+} else {
+  // 2. Fallback: Jika tidak ada, BARU 'require' file lokal
+  console.log("Menggunakan file serviceAccountKey.json (Mode Lokal).");
+  // 'require' sekarang aman di dalam 'else'
+  serviceAccount = require('../../../serviceAccountKey.json'); 
+}
+// --- AKHIR PERUBAHAN ---
+
 
 // Inisialisasi Firebase Admin
 if (!admin.apps.length) {
   try {
     admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
+      // Gunakan serviceAccount yang sudah dinamis (dari atas)
+      credential: admin.credential.cert(serviceAccount), 
     });
     console.log("✅ Firebase Admin SDK Terinisialisasi.");
   } catch (error) {
@@ -20,7 +44,156 @@ if (!admin.apps.length) {
 const dbAdmin = admin.firestore();
 
 // ---------------------------------
-// [FUNGSI BARU] Deteksi Rentang Waktu dari Pertanyaan
+// [FUNGSI getStoreContext] (Tidak ada perubahan)
+// ---------------------------------
+async function getStoreContext(userId, prompt) {
+  if (!userId) {
+    return "Data toko tidak tersedia (user tidak terautentikasi).";
+  }
+
+  try {
+    console.log(`[Admin SDK] Mengambil data untuk user: ${userId}`);
+    
+    // 1. Deteksi rentang waktu dari pertanyaan
+    const timeRange = detectTimeRange(prompt); // Pastikan fungsi detectTimeRange ada di bawah
+    console.log(`⏰ Rentang waktu terdeteksi: ${timeRange.label}`);
+    console.log(`   Dari: ${timeRange.start.toLocaleDateString('id-ID')}`);
+    console.log(`   Sampai: ${timeRange.end.toLocaleDateString('id-ID')}`);
+
+    // 2. Query transaksi
+    const txQuery = dbAdmin.collection("users").doc(userId).collection("transactions")
+      .where('tanggal', '>=', Timestamp.fromDate(timeRange.start))
+      .where('tanggal', '<=', Timestamp.fromDate(timeRange.end))
+      .orderBy('tanggal', 'desc');
+    
+    const txSnap = await txQuery.get();
+
+    // 3. Proses data transaksi
+    let totalSales = 0; // Omzet bersih (yang dibayar customer)
+    let totalGrossSales = 0; // Omzet kotor (termasuk komplimen)
+    let totalTxn = 0;
+    let totalRefund = 0;
+    let totalDiscount = 0;
+    let totalComplimentValue = 0;
+    let totalComplimentItems = 0;
+    let productSalesMap = new Map();
+    let complimentProductMap = new Map();
+    let cashierSalesMap = new Map();
+    let paymentMethodMap = new Map();
+
+    txSnap.forEach((doc) => {
+      const data = doc.data();
+      
+      if (data.isRefunded) {
+        totalRefund += data.total || 0;
+      } else {
+        totalSales += data.total || 0;
+        totalTxn++;
+        totalDiscount += data.diskon || 0;
+        
+        const paymentMethod = data.metodePembayaran || (data.orderType === 'Online' ? data.onlinePlatform : 'Lainnya');
+        paymentMethodMap.set(paymentMethod, (paymentMethodMap.get(paymentMethod) || 0) + (data.total || 0));
+        
+        const cashierName = data.cashierName || 'Tidak diketahui';
+        cashierSalesMap.set(cashierName, (cashierSalesMap.get(cashierName) || 0) + (data.total || 0));
+        
+        (data.items || []).forEach(item => {
+          const productName = item.baseProdukNama || item.produkNama || 'Produk Tidak Dikenal';
+          const qty = item.jumlah || 0;
+          const itemValue = (item.produkHarga || 0) * qty;
+          
+          if (item.isComplimentary) {
+            totalComplimentValue += itemValue;
+            totalComplimentItems += qty;
+            complimentProductMap.set(
+              productName, 
+              (complimentProductMap.get(productName) || 0) + qty
+            );
+          } else {
+            productSalesMap.set(productName, (productSalesMap.get(productName) || 0) + qty);
+          }
+          
+          totalGrossSales += itemValue;
+        });
+      }
+    });
+
+    // 4. Ambil data produk untuk info tambahan
+    const productsSnap = await dbAdmin.collection("users").doc(userId).collection("products").get();
+    const totalProducts = productsSnap.size;
+
+    // 5. Format data menjadi teks konteks
+    const formatRupiah = (value) => new Intl.NumberFormat('id-ID', { 
+      style: 'currency', 
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(value);
+
+    const topProducts = Array.from(productSalesMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, qty]) => `${name} (${qty} terjual)`)
+      .join(', ');
+
+    const topComplimentProducts = Array.from(complimentProductMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([name, qty]) => `${name} (${qty} item)`)
+      .join(', ');
+
+    const topCashier = Array.from(cashierSalesMap.entries())
+      .sort((a, b) => b[1] - a[1])[0];
+
+    const topPaymentMethod = Array.from(paymentMethodMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([method, total]) => `${method} (${formatRupiah(total)})`)
+      .join(', ');
+
+    const context = `
+RENTANG WAKTU: ${timeRange.label} (${timeRange.start.toLocaleDateString('id-ID')} - ${timeRange.end.toLocaleDateString('id-ID')})
+
+RINGKASAN PENJUALAN:
+- Omzet Bersih (yang dibayar customer): ${formatRupiah(totalSales)}
+- Omzet Kotor (termasuk komplimen): ${formatRupiah(totalGrossSales)}
+- Total Transaksi: ${totalTxn}
+- Total Refund: ${formatRupiah(totalRefund)}
+- Total Diskon: ${formatRupiah(totalDiscount)}
+- Rata-rata per Transaksi: ${formatRupiah(totalTxn > 0 ? totalSales / totalTxn : 0)}
+
+KOMPLIMEN (GRATIS):
+- Total Nilai Komplimen: ${formatRupiah(totalComplimentValue)}
+- Total Item Komplimen: ${totalComplimentItems} item
+- Produk Komplimen Terbanyak: ${topComplimentProducts || 'Tidak ada'}
+
+CATATAN PENTING:
+- Omzet BERSIH = Uang yang benar-benar masuk (${formatRupiah(totalSales)})
+- Omzet KOTOR = Termasuk nilai komplimen (${formatRupiah(totalGrossSales)})
+- Jika ditanya "total penjualan", maksudnya biasanya omzet BERSIH
+- Komplimen adalah produk gratis yang tidak dibayar customer
+
+PRODUK:
+- Total Produk di Database: ${totalProducts}
+- Top 5 Produk Terlaris (Berbayar): ${topProducts || 'Belum ada'}
+
+KASIR:
+- Top Kasir: ${topCashier ? `${topCashier[0]} dengan omzet ${formatRupiah(topCashier[1])}` : 'Belum ada data'}
+
+METODE PEMBAYARAN:
+- Top 3: ${topPaymentMethod || 'Belum ada'}
+    `.trim();
+    
+    return context;
+
+  } catch (error) {
+    console.error("❌ Error fetching context:", error);
+    return `Gagal mengambil data toko: ${error.message}`;
+  }
+}
+
+// ---------------------------------
+// [FUNGSI detectTimeRange] (Salin fungsi Anda yang sudah ada ke sini)
 // ---------------------------------
 function detectTimeRange(prompt) {
   const lowerPrompt = prompt.toLowerCase();
@@ -35,12 +208,6 @@ function detectTimeRange(prompt) {
     date.setHours(23, 59, 59, 999);
     return date;
   };
-  
-  // PATTERN: "dari [tanggal] sampai [tanggal/sekarang]"
-  // Contoh: "dari 1 november sampai sekarang", "dari kemarin sampai hari ini"
-  if (lowerPrompt.includes('dari') && (lowerPrompt.includes('sampai') || lowerPrompt.includes('hingga'))) {
-    // Akan dihandle oleh logika di bawah
-  }
   
   // HARI INI
   if (lowerPrompt.includes('hari ini') || lowerPrompt.includes('today')) {
@@ -105,7 +272,7 @@ function detectTimeRange(prompt) {
     };
   }
   
-  // TANGGAL SPESIFIK dengan kata "sampai", "hingga", "s/d"
+  // TANGGAL SPESIFIK (Anda bisa salin logika Anda yang lebih lengkap)
   const monthNames = {
     'januari': 0, 'februari': 1, 'maret': 2, 'april': 3, 'mei': 4, 'juni': 5,
     'juli': 6, 'agustus': 7, 'september': 8, 'oktober': 9, 'november': 10, 'desember': 11
@@ -113,34 +280,22 @@ function detectTimeRange(prompt) {
   
   for (const [monthName, monthIndex] of Object.entries(monthNames)) {
     if (lowerPrompt.includes(monthName)) {
-      // Cek apakah ada kata "sampai", "hingga", "s/d", "sd", "sampai sekarang"
-      const hasUntilKeyword = lowerPrompt.includes('sampai') || 
-                             lowerPrompt.includes('hingga') || 
-                             lowerPrompt.includes('s/d') || 
-                             lowerPrompt.includes(' sd ') ||
-                             lowerPrompt.includes('sekarang');
-      
-      // Cari angka di sekitar nama bulan
+      const hasUntilKeyword = lowerPrompt.includes('sampai') || lowerPrompt.includes('hingga') || lowerPrompt.includes('s/d') || lowerPrompt.includes(' sd ') || lowerPrompt.includes('sekarang');
       const match = lowerPrompt.match(new RegExp(`(\\d+)\\s*${monthName}|${monthName}\\s*(\\d+)`));
       
       if (match) {
         const day = parseInt(match[1] || match[2]);
         const specificDate = new Date(today.getFullYear(), monthIndex, day);
-        
-        // Jika tanggal di masa depan, gunakan tahun lalu
         if (specificDate > today) {
           specificDate.setFullYear(today.getFullYear() - 1);
         }
-        
-        // Jika ada kata "sampai/hingga/sekarang" → dari tanggal tersebut sampai hari ini
         if (hasUntilKeyword) {
           return {
             start: setStartOfDay(specificDate),
-            end: setEndOfDay(new Date(today)), // Sampai hari ini
+            end: setEndOfDay(new Date(today)),
             label: `${day} ${monthName} sampai sekarang`
           };
         } else {
-          // Jika tidak ada → hanya tanggal spesifik itu saja
           return {
             start: setStartOfDay(specificDate),
             end: setEndOfDay(specificDate),
@@ -149,10 +304,7 @@ function detectTimeRange(prompt) {
         }
       }
       
-      // Jika hanya nama bulan tanpa tanggal
-      // Cek apakah ada "sampai sekarang" atau sejenisnya
       if (hasUntilKeyword) {
-        // "dari november sampai sekarang" = 1 november sampai hari ini
         const startOfMonth = new Date(today.getFullYear(), monthIndex, 1);
         if (startOfMonth > today) {
           startOfMonth.setFullYear(today.getFullYear() - 1);
@@ -163,15 +315,12 @@ function detectTimeRange(prompt) {
           label: `1 ${monthName} sampai sekarang`
         };
       } else {
-        // "bulan november" = seluruh bulan november
         const startOfMonth = new Date(today.getFullYear(), monthIndex, 1);
         const endOfMonth = new Date(today.getFullYear(), monthIndex + 1, 0);
-        
         if (startOfMonth > today) {
           startOfMonth.setFullYear(today.getFullYear() - 1);
           endOfMonth.setFullYear(today.getFullYear() - 1);
         }
-        
         return {
           start: setStartOfDay(startOfMonth),
           end: setEndOfDay(endOfMonth),
@@ -181,7 +330,7 @@ function detectTimeRange(prompt) {
     }
   }
   
-  // DEFAULT: BULAN INI (kalau tidak terdeteksi apa-apa)
+  // DEFAULT: BULAN INI
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   return {
     start: setStartOfDay(startOfMonth),
@@ -190,174 +339,14 @@ function detectTimeRange(prompt) {
   };
 }
 
-// ---------------------------------
-// [FUNGSI UPGRADE] Mengambil Data Toko dengan Rentang Fleksibel
-// ---------------------------------
-async function getStoreContext(userId, prompt) {
-  if (!userId) {
-    return "Data toko tidak tersedia (user tidak terautentikasi).";
-  }
-
-  try {
-    console.log(`[Admin SDK] Mengambil data untuk user: ${userId}`);
-    
-    // 1. Deteksi rentang waktu dari pertanyaan
-    const timeRange = detectTimeRange(prompt);
-    console.log(`⏰ Rentang waktu terdeteksi: ${timeRange.label}`);
-    console.log(`   Dari: ${timeRange.start.toLocaleDateString('id-ID')}`);
-    console.log(`   Sampai: ${timeRange.end.toLocaleDateString('id-ID')}`);
-
-    // 2. Query transaksi
-    const txQuery = dbAdmin.collection("users").doc(userId).collection("transactions")
-      .where('tanggal', '>=', Timestamp.fromDate(timeRange.start))
-      .where('tanggal', '<=', Timestamp.fromDate(timeRange.end))
-      .orderBy('tanggal', 'desc');
-    
-    const txSnap = await txQuery.get();
-
-    // 3. Proses data transaksi
-    let totalSales = 0; // Omzet bersih (yang dibayar customer)
-    let totalGrossSales = 0; // Omzet kotor (termasuk komplimen)
-    let totalTxn = 0;
-    let totalRefund = 0;
-    let totalDiscount = 0;
-    let totalComplimentValue = 0; // BARU: Total nilai komplimen
-    let totalComplimentItems = 0; // BARU: Total item komplimen
-    let productSalesMap = new Map();
-    let complimentProductMap = new Map(); // BARU: Track produk komplimen
-    let cashierSalesMap = new Map();
-    let paymentMethodMap = new Map();
-
-    txSnap.forEach((doc) => {
-      const data = doc.data();
-      
-      if (data.isRefunded) {
-        totalRefund += data.total || 0;
-      } else {
-        totalSales += data.total || 0; // Omzet bersih
-        totalTxn++;
-        totalDiscount += data.diskon || 0;
-        
-        // Track payment method
-        const paymentMethod = data.metodePembayaran || (data.orderType === 'Online' ? data.onlinePlatform : 'Lainnya');
-        paymentMethodMap.set(paymentMethod, (paymentMethodMap.get(paymentMethod) || 0) + (data.total || 0));
-        
-        // Track cashier
-        const cashierName = data.cashierName || 'Tidak diketahui';
-        cashierSalesMap.set(cashierName, (cashierSalesMap.get(cashierName) || 0) + (data.total || 0));
-        
-        // Track items (TERMASUK komplimen untuk omzet kotor)
-        (data.items || []).forEach(item => {
-          const productName = item.baseProdukNama || item.produkNama || 'Produk Tidak Dikenal';
-          const qty = item.jumlah || 0;
-          const itemValue = (item.produkHarga || 0) * qty;
-          
-          if (item.isComplimentary) {
-            // BARU: Track komplimen
-            totalComplimentValue += itemValue;
-            totalComplimentItems += qty;
-            complimentProductMap.set(
-              productName, 
-              (complimentProductMap.get(productName) || 0) + qty
-            );
-          } else {
-            // Track penjualan normal
-            productSalesMap.set(productName, (productSalesMap.get(productName) || 0) + qty);
-          }
-          
-          // Hitung omzet kotor (semua item termasuk komplimen)
-          totalGrossSales += itemValue;
-        });
-      }
-    });
-
-    // 4. Ambil data produk untuk info tambahan
-    const productsSnap = await dbAdmin.collection("users").doc(userId).collection("products").get();
-    const totalProducts = productsSnap.size;
-
-    // 5. Format data menjadi teks konteks
-    const formatRupiah = (value) => new Intl.NumberFormat('id-ID', { 
-      style: 'currency', 
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(value);
-
-    // Top 5 produk terlaris
-    const topProducts = Array.from(productSalesMap.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([name, qty]) => `${name} (${qty} terjual)`)
-      .join(', ');
-
-    // BARU: Top produk komplimen
-    const topComplimentProducts = Array.from(complimentProductMap.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([name, qty]) => `${name} (${qty} item)`)
-      .join(', ');
-
-    // Top kasir
-    const topCashier = Array.from(cashierSalesMap.entries())
-      .sort((a, b) => b[1] - a[1])[0];
-
-    // Metode pembayaran terpopuler
-    const topPaymentMethod = Array.from(paymentMethodMap.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([method, total]) => `${method} (${formatRupiah(total)})`)
-      .join(', ');
-
-    const context = `
-RENTANG WAKTU: ${timeRange.label} (${timeRange.start.toLocaleDateString('id-ID')} - ${timeRange.end.toLocaleDateString('id-ID')})
-
-RINGKASAN PENJUALAN:
-- Omzet Bersih (yang dibayar customer): ${formatRupiah(totalSales)}
-- Omzet Kotor (termasuk komplimen): ${formatRupiah(totalGrossSales)}
-- Total Transaksi: ${totalTxn}
-- Total Refund: ${formatRupiah(totalRefund)}
-- Total Diskon: ${formatRupiah(totalDiscount)}
-- Rata-rata per Transaksi: ${formatRupiah(totalTxn > 0 ? totalSales / totalTxn : 0)}
-
-KOMPLIMEN (GRATIS):
-- Total Nilai Komplimen: ${formatRupiah(totalComplimentValue)}
-- Total Item Komplimen: ${totalComplimentItems} item
-- Produk Komplimen Terbanyak: ${topComplimentProducts || 'Tidak ada'}
-
-CATATAN PENTING:
-- Omzet BERSIH = Uang yang benar-benar masuk (${formatRupiah(totalSales)})
-- Omzet KOTOR = Termasuk nilai komplimen (${formatRupiah(totalGrossSales)})
-- Jika ditanya "total penjualan", maksudnya biasanya omzet BERSIH
-- Komplimen adalah produk gratis yang tidak dibayar customer
-
-PRODUK:
-- Total Produk di Database: ${totalProducts}
-- Top 5 Produk Terlaris (Berbayar): ${topProducts || 'Belum ada'}
-
-KASIR:
-- Top Kasir: ${topCashier ? `${topCashier[0]} dengan omzet ${formatRupiah(topCashier[1])}` : 'Belum ada data'}
-
-METODE PEMBAYARAN:
-- Top 3: ${topPaymentMethod || 'Belum ada'}
-    `.trim();
-    
-    return context;
-
-  } catch (error) {
-    console.error("❌ Error fetching context:", error);
-    return `Gagal mengambil data toko: ${error.message}`;
-  }
-}
 
 // ---------------------------------
-// Cache untuk model
+// [FUNGSI callGeminiAPI] (Tidak ada perubahan)
 // ---------------------------------
 let cachedAvailableModel = null;
-
 async function getAvailableModels() {
   const url = `https://generativelanguage.googleapis.com/v1/models?key=${GEMINI_API_KEY}`;
   console.log("🔍 Mengecek model yang tersedia...");
-  
   try {
     const response = await fetch(url);
     if (!response.ok) return [];
@@ -373,25 +362,21 @@ async function getAvailableModels() {
     return [];
   }
 }
-
 async function getBestAvailableModel() {
   if (cachedAvailableModel) {
     console.log(`♻️ Menggunakan cached model: ${cachedAvailableModel}`);
     return cachedAvailableModel;
   }
-  
   const availableModels = await getAvailableModels();
   if (availableModels.length === 0) {
     throw new Error("Tidak ada model yang tersedia untuk API key Anda");
   }
-  
   const preferredModels = [
     'models/gemini-2.5-flash', 'models/gemini-2.0-flash',
     'models/gemini-1.5-flash-latest', 'models/gemini-1.5-flash',
     'models/gemini-2.5-pro', 'models/gemini-1.5-pro-latest',
     'models/gemini-1.5-pro', 'models/gemini-pro', 'models/gemini-1.0-pro',
   ];
-  
   for (const preferred of preferredModels) {
     if (availableModels.includes(preferred)) {
       console.log(`✅ Model terpilih: ${preferred}`);
@@ -399,31 +384,24 @@ async function getBestAvailableModel() {
       return preferred;
     }
   }
-  
   const fallbackModel = availableModels[0];
   console.log(`⚠️ Menggunakan fallback model: ${fallbackModel}`);
   cachedAvailableModel = fallbackModel;
   return fallbackModel;
 }
-
 async function callGeminiAPI(finalPrompt) {
   try {
     const modelName = await getBestAvailableModel();
     const modelPath = modelName.startsWith('models/') ? modelName.substring(7) : modelName;
     const url = `https://generativelanguage.googleapis.com/v1/models/${modelPath}:generateContent?key=${GEMINI_API_KEY}`;
-    
     console.log(`📡 Mengirim request ke: ${modelPath}`);
-    
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: finalPrompt }] }],
         generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 2048, // Dinaikkan untuk jawaban lebih panjang
+          temperature: 0.7, topK: 40, topP: 0.95, maxOutputTokens: 2048,
         },
         safetySettings: [
           { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
@@ -433,34 +411,25 @@ async function callGeminiAPI(finalPrompt) {
         ]
       })
     });
-    
     console.log(`📊 Response status: ${response.status}`);
-    
     if (!response.ok) {
       const errorText = await response.text();
       console.error("❌ Error response:", errorText);
       cachedAvailableModel = null;
-      
       let errorData;
       try {
         errorData = JSON.parse(errorText);
-      } catch {
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
+      } catch { throw new Error(`HTTP ${response.status}: ${errorText}`); }
       throw new Error(errorData.error?.message || `HTTP ${response.status}`);
     }
-    
     const data = await response.json();
     console.log("✅ Respons diterima dari Gemini");
-    
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) {
       console.error("❌ Struktur respons tidak valid");
       throw new Error('Respons AI kosong atau tidak valid');
     }
-    
     return text;
-    
   } catch (error) {
     cachedAvailableModel = null;
     throw error;
@@ -468,7 +437,7 @@ async function callGeminiAPI(finalPrompt) {
 }
 
 // ---------------------------------
-// Handler POST
+// [FUNGSI POST UTAMA] (Tidak ada perubahan)
 // ---------------------------------
 export async function POST(req) {
   try {
@@ -478,15 +447,12 @@ export async function POST(req) {
         error: "Server tidak dikonfigurasi dengan benar. API Key tidak ditemukan." 
       }, { status: 500 });
     }
-
     const { prompt, userId } = await req.json();
-    
     if (!prompt || prompt.trim() === '') {
       return NextResponse.json({ 
         error: "Prompt tidak boleh kosong" 
       }, { status: 400 });
     }
-
     console.log(`\n📝 Menerima prompt: "${prompt.substring(0, 100)}${prompt.length > 100 ? '...' : ''}"`);
     console.log(`👤 UserID: ${userId || 'Anonymous'}`);
     
