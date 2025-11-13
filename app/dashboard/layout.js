@@ -7,9 +7,8 @@ import Header from '@/components/Header';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image'; 
 import { Toaster } from "sonner"; 
-import { auth, db } from "@/lib/firebaseConfig"; // <-- Impor db
+import { auth, db } from "@/lib/firebaseConfig"; 
 import { onAuthStateChanged } from "firebase/auth"; 
-// --- IMPOR BARU UNTUK NOTIFIKASI ---
 import { collection, query, where, Timestamp, orderBy, onSnapshot } from "firebase/firestore";
 
 // --- IMPOR SEMUA MODAL ---
@@ -17,6 +16,9 @@ import ProductModal from '@/components/ProductModal';
 import CategoryModal from '@/components/CategoryModal';
 import MemberModal from '@/components/MemberModal';
 import PegawaiModal from '@/components/PegawaiModal';
+
+// --- [BARU] IMPOR CHATBOT ---
+import ChatbotButton from '@/components/ChatbotButton';
 
 // --- Kumpulan Ikon (React Icons) ---
 import {
@@ -33,11 +35,11 @@ import {
   MdCardMembership,
   MdPayment,
   MdStorefront,
-  MdTag // <-- TAMBAHAN BARU
+  MdTag 
 } from 'react-icons/md';
 // --- Akhir Ikon ---
 
-// --- Struktur Menu (Diperbarui) ---
+// --- Struktur Menu (Tidak berubah) ---
 const menuGroups = [
   {
     title: 'Operasional',
@@ -52,9 +54,7 @@ const menuGroups = [
           { name: 'Ringkasan', path: '/dashboard/laporan/ringkasan', icon: <MdTrendingUp className="w-6 h-6" /> },
           { name: 'Per Produk', path: '/dashboard/laporan/produk', icon: <MdInventory2 className="w-6 h-6" /> },
           { name: 'Per Kategori', path: '/dashboard/laporan/kategori', icon: <MdCategory className="w-6 h-6" /> },
-          // --- INI YANG BARU DITAMBAHKAN ---
           { name: 'Per Tipe Produk', path: '/dashboard/laporan/tipe-produk', icon: <MdTag className="w-6 h-6" /> },
-          // --- AKHIR TAMBAHAN ---
           { name: 'Laporan Kasir', path: '/dashboard/laporan/kasir', icon: <MdPointOfSale className="w-6 h-6" /> },
         ]
       }
@@ -286,6 +286,9 @@ export default function DashboardLayout({ children }) {
           />
         )}
       </div>
+
+      {/* --- [BARU] TAMBAHKAN TOMBOL CHAT DI SINI --- */}
+      <ChatbotButton />
 
       {isMobileSidebarOpen && (
         <div
