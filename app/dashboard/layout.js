@@ -288,7 +288,7 @@ export default function DashboardLayout({ children }) {
       </div>
 
       {/* --- [BARU] TAMBAHKAN TOMBOL CHAT DI SINI --- */}
-      <ChatbotButton />
+      <ChatbotButton userId={currentUserId} />
 
       {isMobileSidebarOpen && (
         <div

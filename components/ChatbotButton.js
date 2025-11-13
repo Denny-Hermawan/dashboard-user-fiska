@@ -2,10 +2,12 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-// Ikon loading/jam pasir
+// --- [BARU] Impor ReactMarkdown ---
+import ReactMarkdown from 'react-markdown'; 
+// Impor ikon
 import { MdSupportAgent, MdClose, MdSend, MdHourglassTop } from 'react-icons/md';
 
-export default function ChatbotButton() {
+export default function ChatbotButton({ userId }) { // Pastikan userId ada
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
     { from: 'ai', text: 'Halo! Ada yang bisa saya bantu terkait data toko Anda?' }
@@ -19,7 +21,6 @@ export default function ChatbotButton() {
     setIsOpen(!isOpen);
   };
 
-  // INI ADALAH FUNGSI PENTING YANG DIUBAH
   const handleSend = async (e) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
@@ -30,40 +31,32 @@ export default function ChatbotButton() {
     setIsLoading(true);
 
     try {
-      // 1. Panggil "Jembatan" API kita
+      // Panggil "Jembatan" API kita
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ prompt: userMessage.text }),
+        body: JSON.stringify({ prompt: userMessage.text, userId: userId }),
       });
 
-      // 2. Ambil JSON-nya dulu, APA PUN statusnya
       const data = await res.json();
 
-      // 3. Cek jika responnya TIDAK OKE (cth: error 500)
       if (!res.ok) {
-        // 'data.error' akan berisi pesan error spesifik dari server
-        // (Contoh: "Kunci API tidak valid" atau "API tidak diaktifkan")
         throw new Error(data.error || 'Gagal mendapatkan balasan (Client Check)');
       }
 
-      // 4. Jika semua aman (status 200), tampilkan balasan AI
       const aiResponse = { from: 'ai', text: data.text };
       setMessages(prev => [...prev, aiResponse]);
 
     } catch (error) {
-      // 5. Tampilkan 'error.message' yang kita dapat dari 'throw' di atas
-      console.error(error); // Tetap log di console
-      // Ini akan menampilkan "Error: Kunci API tidak valid" dll. di chat
+      console.error(error);
       const errorResponse = { from: 'ai', text: `Error: ${error.message}` };
       setMessages(prev => [...prev, errorResponse]);
     } finally {
       setIsLoading(false);
     }
   };
-  // AKHIR FUNGSI YANG DIUBAH
 
   // Efek untuk auto-scroll ke pesan terbaru
   useEffect(() => {
@@ -72,7 +65,6 @@ export default function ChatbotButton() {
     }
   }, [messages, isLoading]);
 
-  // Ini adalah style Tailwind murni yang sudah berhasil
   const bubbleClasses = "fixed bottom-5 right-5 z-[1000] w-[60px] h-[60px] rounded-full bg-gradient-to-br from-cyan-700 to-cyan-500 text-white flex items-center justify-center shadow-lg cursor-pointer transition-all duration-300 ease-in-out hover:scale-110 hover:shadow-xl";
 
   if (!isOpen) {
@@ -97,7 +89,6 @@ export default function ChatbotButton() {
         <MdClose className="w-8 h-8" />
       </button>
 
-      {/* Jendela Chat (CSS dari globals.css) */}
       <div className="chatbox-window" role="dialog" aria-labelledby="chatbox-title">
         <div className="chatbox-header">
           <h3 id="chatbox-title" className="text-lg font-bold text-gray-900">Asisten AI Fiska</h3>
@@ -106,9 +97,12 @@ export default function ChatbotButton() {
 
         <div ref={chatBodyRef} className="chatbox-body">
           {messages.map((msg, index) => (
+            // --- [PERUBAHAN DI SINI] ---
+            // Kita ganti {msg.text} dengan <ReactMarkdown>
             <div key={index} className={`chat-message ${msg.from === 'user' ? 'user' : 'ai'}`}>
-              {msg.text}
+              <ReactMarkdown>{msg.text}</ReactMarkdown>
             </div>
+            // --- AKHIR PERUBAHAN ---
           ))}
           {isLoading && (
             <div className="chat-message ai opacity-80">
