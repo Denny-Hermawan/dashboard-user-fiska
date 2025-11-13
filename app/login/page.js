@@ -2,20 +2,21 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+// [FIX] Impor Suspense dari React
+import React, { useState, useEffect, Suspense } from 'react';
 import { 
   signInWithPopup, 
   GoogleAuthProvider, 
   onAuthStateChanged,
-  signInWithEmailAndPassword, // <-- BARU
-  sendPasswordResetEmail      // <-- BARU
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail
 } from "firebase/auth";
 import { auth } from "@/lib/firebaseConfig"; 
-import { useRouter, useSearchParams } from 'next/navigation'; // <-- Import useSearchParams
+import { useRouter, useSearchParams } from 'next/navigation'; 
 import Image from 'next/image';
-import Link from 'next/link'; // <-- BARU
+import Link from 'next/link'; 
 
-// --- Ikon Baru (React Icons) ---
+// --- Ikon (Tidak berubah) ---
 import { FcGoogle } from 'react-icons/fc';
 import { 
   HiOutlineMail, 
@@ -23,11 +24,12 @@ import {
   HiOutlineEye, 
   HiOutlineEyeOff 
 } from 'react-icons/hi';
-// --- Akhir Ikon ---
 
-function LoginPage() {
+// --- [FIX] Komponen asli diubah namanya menjadi LoginContent ---
+// Komponen ini berisi semua logika yang menggunakan useSearchParams
+function LoginContent() {
   const router = useRouter();
-  const searchParams = useSearchParams(); // <-- Untuk pesan sukses registrasi
+  const searchParams = useSearchParams(); // <-- Hook yang menyebabkan error
 
   // State untuk Form
   const [email, setEmail] = useState('');
@@ -40,11 +42,10 @@ function LoginPage() {
   
   // State Error dan Sukses
   const [error, setError] = useState(null);
-  const [successMessage, setSuccessMessage] = useState(''); // <-- BARU
+  const [successMessage, setSuccessMessage] = useState(''); 
 
   const [checkingAuth, setCheckingAuth] = useState(true);
 
-  // Gabungkan state loading
   const isAnyLoading = isSigningInEmail || isSigningInGoogle;
 
   useEffect(() => {
@@ -55,10 +56,9 @@ function LoginPage() {
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        // Jika login tapi email belum diverifikasi (KECUALI Google, karena Google pasti terverifikasi)
         if (!user.emailVerified && user.providerData.some(p => p.providerId === 'password')) {
            setError('Email Anda belum diverifikasi. Silakan cek inbox (atau Spam).');
-           auth.signOut(); // Logout paksa, sama seperti di Flutter
+           auth.signOut();
            setCheckingAuth(false);
         } else {
           router.replace('/dashboard');
@@ -68,18 +68,18 @@ function LoginPage() {
       }
     });
     return () => unsubscribe();
-  }, [router, searchParams]);
+  }, [router, searchParams]); // searchParams tetap menjadi dependensi
 
   const provider = new GoogleAuthProvider();
 
-  // Handler Login Google
+  // (Semua handler: handleGoogleSignIn, handleEmailLogin, handleForgotPassword...
+  // ...tetap sama seperti di file asli Anda)
   const handleGoogleSignIn = async () => {
     setIsSigningInGoogle(true);
     setError(null);
     setSuccessMessage('');
     try {
       await signInWithPopup(auth, provider);
-      // Listener onAuthStateChanged akan handle redirect
     } catch (error) {
       console.error("Error login Google:", error);
       if (error.code === 'auth/popup-closed-by-user') {
@@ -91,7 +91,6 @@ function LoginPage() {
     }
   };
 
-  // Handler Login Email
   const handleEmailLogin = async (e) => {
     e.preventDefault();
     if (!email || !password) {
@@ -108,11 +107,9 @@ function LoginPage() {
       const user = userCredential.user;
 
       if (user && !user.emailVerified) {
-        // Berhasil login, TAPI belum verifikasi
         setError('Email Anda belum diverifikasi. Silakan cek inbox (atau Spam).');
-        await auth.signOut(); // Logout paksa
+        await auth.signOut();
       }
-      // Jika berhasil DAN terverifikasi, onAuthStateChanged akan handle redirect
 
     } catch (error) {
       console.error("Error login Email:", error.code);
@@ -138,7 +135,6 @@ function LoginPage() {
     }
   };
 
-  // Handler Lupa Password
   const handleForgotPassword = async () => {
     if (!email) {
       setError("Harap masukkan email Anda di kolom email terlebih dahulu.");
@@ -146,7 +142,7 @@ function LoginPage() {
     }
     
     setError(null);
-    setSuccessMessage(''); // Hapus pesan sukses lama
+    setSuccessMessage(''); 
 
     try {
       await sendPasswordResetEmail(auth, email);
@@ -170,6 +166,7 @@ function LoginPage() {
     );
   }
 
+  // (JSX return dari komponen asli Anda tidak berubah)
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-cyan-100 via-white to-cyan-100 p-4">
       <div className="w-full max-w-md rounded-xl bg-white p-8 shadow-lg md:p-10">
@@ -204,7 +201,7 @@ function LoginPage() {
           </p>
         )}
 
-        {/* --- FORM LOGIN EMAIL BARU --- */}
+        {/* FORM LOGIN EMAIL */}
         <form onSubmit={handleEmailLogin} className="space-y-4">
           {/* Input Email */}
           <div>
@@ -296,10 +293,8 @@ function LoginPage() {
             {isSigningInEmail ? 'Memproses...' : 'Login'}
           </button>
         </form>
-        {/* --- AKHIR FORM LOGIN --- */}
 
-
-        {/* --- Pemisah "ATAU" --- */}
+        {/* Pemisah "ATAU" */}
         <div className="my-6 flex items-center">
           <div className="flex-grow border-t border-gray-300"></div>
           <span className="mx-4 flex-shrink text-sm font-medium text-gray-500">
@@ -327,7 +322,7 @@ function LoginPage() {
           {isSigningInGoogle ? 'Memproses...' : 'Lanjutkan dengan Google'}
         </button>
 
-        {/* --- Link ke Halaman Register --- */}
+        {/* Link ke Halaman Register */}
         <p className="mt-8 text-center text-sm text-gray-600">
           Belum punya akun?{' '}
           <Link href="/register">
@@ -342,4 +337,20 @@ function LoginPage() {
   );
 }
 
-export default LoginPage;
+// --- [FIX] Komponen wrapper baru diekspor sebagai default ---
+// Ini adalah "Suspense Boundary" yang diminta oleh Vercel/Next.js
+export default function LoginPage() {
+  
+  // Komponen Fallback sederhana untuk ditampilkan saat Suspense aktif
+  const LoadingFallback = () => (
+    <div className="flex min-h-screen items-center justify-center bg-gray-100">
+      <p>Memuat halaman login...</p>
+    </div>
+  );
+
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <LoginContent />
+    </Suspense>
+  );
+}
